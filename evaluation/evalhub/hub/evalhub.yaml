@@ -17,7 +17,9 @@ spec:
   # 배포 승인용 컬렉션(kbl-release-v1)은 test_data_ref(S3) 를 포함하므로 REST API 로 테넌트에 등록한다
   # (jobs/create-collection.sh). ConfigMap(system collection) 로더는 test_data_ref.s3.secret_ref 를
   # 인식하지 못해 서버가 기동 실패한다 (RHOAI 3.5 에서 확인).
-  # MLflow 연동(MLFLOW_TRACKING_URI / WORKSPACE / CA / 토큰)은 operator 가 같은 네임스페이스의 MLflow 를 찾아 자동 설정한다.
-  # 직접 지정할 때는 RHOAI MLflow 의 --static-prefix(/mlflow) 를 포함해야 한다:
-  #   https://mlflow.redhat-ods-applications.svc:8443/mlflow
-  # (prefix 가 빠지면 workspace 지원 감지가 실패해 job 제출 시 "Workspace context is required" 오류)
+  env:
+    # RHOAI MLflow 는 --static-prefix=/mlflow 로 기동하므로 경로에 /mlflow 를 포함해야 한다.
+    # (빠지면 workspace 지원 감지가 실패해 job 제출 시 "Workspace context is required" 오류)
+    # WORKSPACE / CA / 토큰 경로는 operator 가 자동 설정한다.
+    - name: MLFLOW_TRACKING_URI
+      value: https://mlflow.redhat-ods-applications.svc:8443/mlflow

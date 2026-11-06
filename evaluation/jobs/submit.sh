@@ -36,7 +36,7 @@ echo
 echo "$res" | jq -r '
   "== 결과 (\(.status.state)) ==",
   (.results.benchmarks[]? |
-     "\(.id)\t" + ([.metrics | to_entries[] | "\(.key)=\(.value)"] | join("  ")) +
+     "\(.id)\t" + ([(.metrics // {}) | to_entries[] | "\(.key)=\(.value)"] | join("  ")) +
      (if .test then "\t[\(if .test.pass then "PASS" else "FAIL" end) \(.test.primary_score_metric // "")=\(.test.primary_score // "") ≥ \(.test.threshold // "")]" else "" end)),
   (if .results.test then "== 종합: \(if .results.test.pass then "PASS" else "FAIL" end) score=\(.results.test.score) threshold=\(.results.test.threshold) ==" else empty end),
   (if .results.mlflow_experiment_url then "MLflow: \(.results.mlflow_experiment_url)" else empty end),

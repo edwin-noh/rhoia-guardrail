@@ -1,0 +1,16 @@
+# 평가 job pod 가 model-hub 의 모델(kube-rbac-proxy, enable-auth=true)을 호출할 수 있게 한다.
+# EvalHub sidecar 가 job ServiceAccount 토큰을 자동 주입하므로(EVAL 문서 2.16) 권한만 주면 된다.
+# job SA 이름은 operator 가 정하므로 kbl-eval 네임스페이스의 ServiceAccount 그룹 전체에 부여한다.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kbl-eval-model-access
+  namespace: model-hub
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: system:serviceaccounts:kbl-eval

@@ -1,0 +1,3 @@
+id,category,type,question,choices,answer,reference_answer,required_keywords,forbidden,source,owner,reviewed_at
+KBL-XXXX,약관,open,(질문 원문),,,(모범답안 - 근거 조항에 맞게 작성),(핵심용어1;핵심용어2),(금지표현1;금지표현2),(근거: 약관 조항/법령),(작성부서),YYYY-MM-DD
+KBL-YYYY,상품,mcq,(객관식 질문),A. 보기1|B. 보기2|C. 보기3|D. 보기4,B,,,,(근거),(작성부서),YYYY-MM-DD

@@ -1,0 +1,18 @@
+# EvalHub 인프라. 부트스트랩 시 한 번 oc apply (appproject.yaml 먼저)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kbl-evaluation-evalhub
+  namespace: openshift-gitops
+spec:
+  project: kbl-evaluation
+  source:
+    repoURL: https://github.com/edwin-noh/rhoia-guardrail.git
+    targetRevision: main
+    path: evaluation/evalhub
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true          # Namespace / PVC 는 리소스 annotation 으로 prune 제외

@@ -1,0 +1,21 @@
+# EvalHub 서버. 대시보드 Evaluations 화면이 찾을 수 있도록 redhat-ods-applications 에 둔다
+# (RHOAI 3.5 알려진 이슈 RHOAIENG-66068: 다른 네임스페이스의 인스턴스는 대시보드에서 보이지 않음)
+apiVersion: trustyai.opendatahub.io/v1
+kind: EvalHub
+metadata:
+  name: evalhub
+  namespace: redhat-ods-applications
+spec:
+  replicas: 1
+  database:
+    type: postgresql
+    secret: evalhub-db-credentials        # db-url 키 (SealedSecret)
+  providers:
+    - lm-evaluation-harness               # 시스템 제공
+    - kbl-lm-eval-ko                      # ★ 커스텀: lm-eval + KMMLU (provider-lm-eval-ko.yaml)
+    - kbl-golden                          # ★ 커스텀: KB Life 골든셋 adapter (provider-kbl-golden.yaml)
+  collections:
+    - kbl-release-v1                      # ★ 커스텀: 배포 승인용 묶음 (collection-kbl-release.yaml)
+  env:
+    - name: MLFLOW_TRACKING_URI
+      value: https://mlflow.redhat-ods-applications.svc:8443

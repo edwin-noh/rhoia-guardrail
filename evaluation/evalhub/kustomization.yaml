@@ -1,0 +1,19 @@
+# EvalHub 인프라 전체 (Argo CD Application kbl-evaluation-evalhub 가 동기화)
+# 리소스가 여러 네임스페이스에 걸쳐 있으므로 namespace 를 덮어쓰지 않는다.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # 테넌트 (평가 job 실행 위치)
+  - tenant/namespace.yaml
+  - tenant/rbac.yaml
+  - tenant/model-access.yaml
+  - tenant/postgres.yaml
+  # Secret (SealedSecret, scripts/seal-secrets.sh 로 생성)
+  - secrets/kbl-eval-s3.yaml
+  - secrets/evalhub-postgres.yaml
+  - secrets/evalhub-db-credentials.yaml
+  # EvalHub 서버 + 커스텀 provider / collection (redhat-ods-applications)
+  - hub/provider-lm-eval-ko.yaml
+  - hub/provider-kbl-golden.yaml
+  - hub/collection-kbl-release.yaml
+  - hub/evalhub.yaml

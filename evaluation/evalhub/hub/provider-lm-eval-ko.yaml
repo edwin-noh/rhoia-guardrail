@@ -1,0 +1,80 @@
+# ★ 커스텀 provider: 시스템 lm-eval adapter 이미지를 그대로 쓰고 한국어 벤치마크(KMMLU)만 추가 등록한다.
+#   - 시스템 provider(188개)에 없는 lm-eval task 도 benchmark id = lm-eval task 이름으로 등록하면 실행된다
+#     (adapter 가 benchmark_id 를 lm-eval 에 그대로 전달. 이미지에 kmmlu/kobest/haerae task 포함)
+#   - kmmlu_direct_* : 생성형(generate_until) 4지선다, exact_match 채점 → vLLM /v1/completions 로 동작
+#   - image 는 시스템 provider(trustyai-service-operator-evalhub-provider-lm-evaluation-harness)와 같은 digest.
+#     RHOAI 업그레이드 시 시스템 provider 의 image 로 맞춘다.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evalhub-provider-kbl-lm-eval-ko
+  namespace: redhat-ods-applications
+  labels:
+    trustyai.opendatahub.io/evalhub-provider-type: system
+    trustyai.opendatahub.io/evalhub-provider-name: kbl-lm-eval-ko
+data:
+  kbl_lm_eval_ko.yaml: |
+    id: kbl_lm_eval_ko
+    name: LM Evaluation Harness (Korean)
+    title: LM Evaluation Harness - 한국어 벤치마크
+    description: >
+      KMMLU(한국어 전문지식) 중 보험 업무 연관 과목. 데이터는 S3 에 미리 적재해 오프라인으로 실행한다.
+    runtime:
+      k8s:
+        image: registry.redhat.io/rhoai/odh-ta-lmes-job-rhel9@sha256:5f7f9537d51e64f38a9b2bd79461ba5328fc54b5fc51640ae7b2378b414d7fba
+        entrypoint:
+          - /opt/app-root/bin/python
+          - /opt/app-root/src/main.py
+        cpu_request: 100m
+        memory_request: 512Mi
+        cpu_limit: 1000m
+        memory_limit: 4Gi
+    benchmarks:
+      - id: kmmlu_direct_accounting
+        name: "KMMLU 회계 (accounting)"
+        description: KMMLU accounting 과목 4지선다 (생성형, 정답 기호 exact match)
+        category: knowledge
+        metrics: [exact_match]
+        num_few_shot: 0
+        tags: [korean, kmmlu, lm_eval]
+        primary_score:
+          metric: exact_match
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.35
+      - id: kmmlu_direct_economics
+        name: "KMMLU 경제 (economics)"
+        description: KMMLU economics 과목 4지선다 (생성형, 정답 기호 exact match)
+        category: knowledge
+        metrics: [exact_match]
+        num_few_shot: 0
+        tags: [korean, kmmlu, lm_eval]
+        primary_score:
+          metric: exact_match
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.35
+      - id: kmmlu_direct_taxation
+        name: "KMMLU 세무 (taxation)"
+        description: KMMLU taxation 과목 4지선다 (생성형, 정답 기호 exact match)
+        category: knowledge
+        metrics: [exact_match]
+        num_few_shot: 0
+        tags: [korean, kmmlu, lm_eval]
+        primary_score:
+          metric: exact_match
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.35
+      - id: kmmlu_direct_law
+        name: "KMMLU 법률 (law)"
+        description: KMMLU law 과목 4지선다 (생성형, 정답 기호 exact match)
+        category: knowledge
+        metrics: [exact_match]
+        num_few_shot: 0
+        tags: [korean, kmmlu, lm_eval]
+        primary_score:
+          metric: exact_match
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.35

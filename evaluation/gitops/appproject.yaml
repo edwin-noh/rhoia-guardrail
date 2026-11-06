@@ -1,0 +1,31 @@
+# 모델 평가 전용 Argo CD 프로젝트 (클러스터 GitOps, 가드레일 프로젝트와 분리)
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: kbl-evaluation
+  namespace: openshift-gitops
+spec:
+  description: KB Life 모델 평가 (EvalHub)
+  sourceRepos:
+    - https://github.com/edwin-noh/rhoia-guardrail.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: kbl-eval                  # 테넌트: 평가 job, DB
+    - server: https://kubernetes.default.svc
+      namespace: redhat-ods-applications   # EvalHub 서버, provider/collection ConfigMap
+    - server: https://kubernetes.default.svc
+      namespace: model-hub                 # 모델 호출 권한 RoleBinding 만
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - {group: "", kind: ConfigMap}
+    - {group: "", kind: ServiceAccount}
+    - {group: "", kind: Service}
+    - {group: "", kind: PersistentVolumeClaim}
+    - {group: apps, kind: Deployment}
+    - {group: rbac.authorization.k8s.io, kind: Role}
+    - {group: rbac.authorization.k8s.io, kind: RoleBinding}
+    - {group: networking.k8s.io, kind: NetworkPolicy}
+    - {group: bitnami.com, kind: SealedSecret}
+    - {group: trustyai.opendatahub.io, kind: EvalHub}

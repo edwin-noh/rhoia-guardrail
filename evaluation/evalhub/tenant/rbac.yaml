@@ -1,0 +1,39 @@
+# 평가를 실행하는 사용자/자동화 계정 권한 (EVAL 문서 2.29~2.30)
+# EvalHub 는 trustyai.opendatahub.io 그룹의 "가상 리소스"로 SubjectAccessReview 권한 검사를 한다.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: kbl-evalhub-user
+  namespace: kbl-eval
+rules:
+  - apiGroups: ["trustyai.opendatahub.io"]
+    resources: ["evaluations", "collections", "providers"]
+    verbs: ["get", "list", "create", "update", "delete"]
+  - apiGroups: ["mlflow.kubeflow.org"]
+    resources: ["experiments"]
+    verbs: ["get", "list", "create", "update"]
+---
+# CI/CD·스크립트용 ServiceAccount (jobs/submit.sh 가 이 SA 토큰으로 호출)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kbl-eval-runner
+  namespace: kbl-eval
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: kbl-evalhub-user
+  namespace: kbl-eval
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kbl-evalhub-user
+subjects:
+  - kind: ServiceAccount
+    name: kbl-eval-runner
+    namespace: kbl-eval
+  # 사람 사용자는 그룹으로 부여한다 (예: AI팀 그룹)
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: kbl-ai-team

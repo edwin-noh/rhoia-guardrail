@@ -1,0 +1,38 @@
+# ★ 커스텀 provider: KB Life 골든셋 adapter (evaluation/adapters/kbl-golden)
+#   이미지는 adapters/kbl-golden/build.sh 로 빌드/푸시. 폐쇄망은 사내 레지스트리 주소로 바꾼다.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evalhub-provider-kbl-golden
+  namespace: redhat-ods-applications
+  labels:
+    trustyai.opendatahub.io/evalhub-provider-type: system
+    trustyai.opendatahub.io/evalhub-provider-name: kbl-golden
+data:
+  kbl_golden.yaml: |
+    id: kbl_golden
+    name: KB Life Golden Set
+    title: KB Life 골든셋 평가
+    description: >
+      KB Life 업무 담당자가 만든 보험 Q&A 골든셋(질문/모범답안/핵심용어/금지표현)으로
+      정답 일치, 핵심용어 포함, 금지표현, LLM-as-judge 점수를 채점한다.
+    runtime:
+      k8s:
+        image: quay.io/gunoh/kbl-golden-adapter:v1
+        entrypoint: [python, main.py]
+        cpu_request: 100m
+        memory_request: 256Mi
+        cpu_limit: 500m
+        memory_limit: 1Gi
+    benchmarks:
+      - id: kbl_insurance_qa
+        name: 보험 상담 Q&A 골든셋
+        description: 약관/상품/청구/세제/계약관리 Q&A. 데이터는 test_data_ref(S3 golden/<버전>/) 로 지정
+        category: domain
+        metrics: [golden_score, mcq_accuracy, keyword_recall, forbidden_rate, judge_score]
+        tags: [korean, kbl, golden-set]
+        primary_score:
+          metric: golden_score
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.6

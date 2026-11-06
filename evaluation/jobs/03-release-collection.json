@@ -1,0 +1,16 @@
+{
+  "name": "release-gate-qwen3-4b",
+  "model": {
+    "url": "https://qwen3-4b-instruct-2507-v10-predictor.model-hub.svc.cluster.local:8443/v1",
+    "name": "qwen3-4b-instruct-2507-v10"
+  },
+  "experiment": {
+    "name": "kbl-qwen3-4b-release"
+  },
+  "tags": [
+    "release-gate"
+  ],
+  "collection": {
+    "id": "kbl-release-v1"
+  }
+}

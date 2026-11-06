@@ -1,0 +1,11 @@
+# KB Life 골든셋 평가 adapter (EvalHub BYOF provider 이미지)
+FROM registry.access.redhat.com/ubi9/python-312
+
+WORKDIR /opt/app-root/src
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY main.py scoring.py ./
+
+# EvalHub 가 job spec 을 마운트하고 이 엔트리포인트를 실행한다 (provider runtime.k8s.entrypoint)
+USER 1001
+ENTRYPOINT ["python", "main.py"]

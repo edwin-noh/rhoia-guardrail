@@ -1,0 +1,80 @@
+{
+  "name": "kmmlu-qwen3-4b",
+  "model": {
+    "url": "https://qwen3-4b-instruct-2507-v10-predictor.model-hub.svc.cluster.local:8443/v1",
+    "name": "qwen3-4b-instruct-2507-v10"
+  },
+  "experiment": {
+    "name": "kbl-qwen3-4b-kmmlu"
+  },
+  "tags": [
+    "kmmlu",
+    "korean"
+  ],
+  "benchmarks": [
+    {
+      "provider_id": "kbl_lm_eval_ko",
+      "id": "kmmlu_direct_accounting",
+      "parameters": {
+        "tokenizer": "/test_data/tokenizer",
+        "num_concurrent": 2,
+        "num_examples": 50
+      },
+      "test_data_ref": {
+        "s3": {
+          "bucket": "kbl-eval",
+          "key": "datasets/kmmlu-kbl",
+          "secret_ref": "kbl-eval-s3"
+        }
+      }
+    },
+    {
+      "provider_id": "kbl_lm_eval_ko",
+      "id": "kmmlu_direct_economics",
+      "parameters": {
+        "tokenizer": "/test_data/tokenizer",
+        "num_concurrent": 2,
+        "num_examples": 50
+      },
+      "test_data_ref": {
+        "s3": {
+          "bucket": "kbl-eval",
+          "key": "datasets/kmmlu-kbl",
+          "secret_ref": "kbl-eval-s3"
+        }
+      }
+    },
+    {
+      "provider_id": "kbl_lm_eval_ko",
+      "id": "kmmlu_direct_taxation",
+      "parameters": {
+        "tokenizer": "/test_data/tokenizer",
+        "num_concurrent": 2,
+        "num_examples": 50
+      },
+      "test_data_ref": {
+        "s3": {
+          "bucket": "kbl-eval",
+          "key": "datasets/kmmlu-kbl",
+          "secret_ref": "kbl-eval-s3"
+        }
+      }
+    },
+    {
+      "provider_id": "kbl_lm_eval_ko",
+      "id": "kmmlu_direct_law",
+      "parameters": {
+        "tokenizer": "/test_data/tokenizer",
+        "num_concurrent": 2,
+        "num_examples": 50
+      },
+      "test_data_ref": {
+        "s3": {
+          "bucket": "kbl-eval",
+          "key": "datasets/kmmlu-kbl",
+          "secret_ref": "kbl-eval-s3"
+        }
+      }
+    }
+  ]
+}

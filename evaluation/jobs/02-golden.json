@@ -1,0 +1,32 @@
+{
+  "name": "golden-v1-qwen3-4b",
+  "model": {
+    "url": "https://qwen3-4b-instruct-2507-v10-predictor.model-hub.svc.cluster.local:8443/v1",
+    "name": "qwen3-4b-instruct-2507-v10"
+  },
+  "experiment": {
+    "name": "kbl-qwen3-4b-golden"
+  },
+  "tags": [
+    "golden-set",
+    "v1"
+  ],
+  "benchmarks": [
+    {
+      "provider_id": "kbl_golden",
+      "id": "kbl_insurance_qa",
+      "parameters": {
+        "dataset_version": "v1",
+        "concurrency": 2,
+        "judge": true
+      },
+      "test_data_ref": {
+        "s3": {
+          "bucket": "kbl-eval",
+          "key": "golden/v1",
+          "secret_ref": "kbl-eval-s3"
+        }
+      }
+    }
+  ]
+}

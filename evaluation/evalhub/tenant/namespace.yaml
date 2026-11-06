@@ -1,0 +1,14 @@
+# 평가 job 이 실행되는 EvalHub 테넌트 네임스페이스
+# - evalhub.../tenant 라벨: operator 가 job ServiceAccount / RBAC / service CA ConfigMap 을 자동 생성
+# - opendatahub.io/generated-namespace: EvalHub 가 redhat-ods-applications 에 있을 때
+#   그 네임스페이스의 NetworkPolicy 를 통과하기 위해 필요 (EVAL 문서 2.28)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kbl-eval
+  labels:
+    evalhub.trustyai.opendatahub.io/tenant: ""
+    opendatahub.io/generated-namespace: "true"
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false   # Git 에서 지워도 네임스페이스는 남긴다
+    argocd.argoproj.io/sync-wave: "-1"

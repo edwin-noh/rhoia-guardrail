@@ -1,0 +1,47 @@
+# KB Life 업무 시나리오. 토큰 길이로 업무 유형을 흉내 낸다 (합성 데이터).
+# 실제 업무에 맞추려면 운영 로그의 평균 입력/출력 토큰 길이로 prompt_tokens / output_tokens 를 바꾼다.
+#
+#   profile : synchronous(1명씩 순차) | concurrent(동시 사용자 rate 명 유지)
+#             | constant / poisson(초당 rate 건) | throughput(rate 를 상한으로 포화까지)
+#   rate    : profile 별 의미 (concurrent=동시 사용자 수). RATE_SCALE 로 일괄 조정
+#   sla     : 이 시나리오의 합격 기준 (EvalHub provider 의 pass_criteria 와 같은 값으로 report 에서 판정)
+#   max_seconds : 생략하면 config.env 의 MAX_SECONDS
+scenarios:
+  - id: chat_baseline
+    name: 상담 챗봇 1명 기준선
+    profile: synchronous
+    prompt_tokens: 256
+    output_tokens: 256
+    sla: {metric: mean_ttft_ms, max: 500}
+
+  - id: chat_peak
+    name: 상담 챗봇 피크 (동시 사용자)
+    profile: concurrent
+    rate: 8
+    prompt_tokens: 256
+    output_tokens: 256
+    sla: {metric: mean_ttft_ms, max: 1500}
+
+  - id: rag_consult
+    name: RAG 상담 (약관 청크 포함 긴 입력)
+    profile: concurrent
+    rate: 4
+    prompt_tokens: 2048
+    output_tokens: 256
+    sla: {metric: mean_ttft_ms, max: 3000}
+
+  - id: doc_summary
+    name: 약관·청약서 요약 (긴 입력·긴 출력)
+    profile: concurrent
+    rate: 2
+    prompt_tokens: 4096
+    output_tokens: 512
+    sla: {metric: output_tokens_per_second, min: 50}
+
+  - id: capacity
+    name: 최대 처리량 (용량 산정)
+    profile: throughput
+    rate: 16            # throughput 은 최대 동시 요청 수(상한)가 필요하다
+    prompt_tokens: 256
+    output_tokens: 256
+    sla: {metric: requests_per_second, min: 1}

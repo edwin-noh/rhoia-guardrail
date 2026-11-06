@@ -1,0 +1,145 @@
+{
+  "name": "kbl_perf",
+  "title": "KB Life 서빙 성능 (GuideLLM)",
+  "description": "KB Life 업무 시나리오(상담 챗봇, RAG 상담, 문서 요약, 최대 처리량)별 서빙 성능과 SLA 측정. 시스템 GuideLLM adapter 이미지 재사용.",
+  "runtime": {
+    "k8s": {
+      "image": "quay.io/evalhub/community-guidellm:v0.5.0",
+      "entrypoint": [
+        "python",
+        "main.py"
+      ],
+      "cpu_request": "100m",
+      "memory_request": "256Mi",
+      "cpu_limit": "1000m",
+      "memory_limit": "2Gi"
+    }
+  },
+  "benchmarks": [
+    {
+      "id": "chat_baseline",
+      "name": "상담 챗봇 1명 기준선",
+      "description": "synchronous, 256/256 tokens",
+      "category": "performance",
+      "metrics": [
+        "requests_per_second",
+        "prompt_tokens_per_second",
+        "output_tokens_per_second",
+        "mean_ttft_ms",
+        "mean_itl_ms"
+      ],
+      "tags": [
+        "performance",
+        "kbl",
+        "guidellm"
+      ],
+      "primary_score": {
+        "metric": "mean_ttft_ms",
+        "lower_is_better": true
+      },
+      "pass_criteria": {
+        "threshold": 500
+      }
+    },
+    {
+      "id": "chat_peak",
+      "name": "상담 챗봇 동시 사용자",
+      "description": "concurrent, 256/256 tokens",
+      "category": "performance",
+      "metrics": [
+        "requests_per_second",
+        "prompt_tokens_per_second",
+        "output_tokens_per_second",
+        "mean_ttft_ms",
+        "mean_itl_ms"
+      ],
+      "tags": [
+        "performance",
+        "kbl",
+        "guidellm"
+      ],
+      "primary_score": {
+        "metric": "mean_ttft_ms",
+        "lower_is_better": true
+      },
+      "pass_criteria": {
+        "threshold": 1500
+      }
+    },
+    {
+      "id": "rag_consult",
+      "name": "RAG 상담 (긴 입력)",
+      "description": "concurrent, 2048/256 tokens",
+      "category": "performance",
+      "metrics": [
+        "requests_per_second",
+        "prompt_tokens_per_second",
+        "output_tokens_per_second",
+        "mean_ttft_ms",
+        "mean_itl_ms"
+      ],
+      "tags": [
+        "performance",
+        "kbl",
+        "guidellm"
+      ],
+      "primary_score": {
+        "metric": "mean_ttft_ms",
+        "lower_is_better": true
+      },
+      "pass_criteria": {
+        "threshold": 3000
+      }
+    },
+    {
+      "id": "doc_summary",
+      "name": "약관·청약서 요약",
+      "description": "concurrent, 4096/512 tokens",
+      "category": "performance",
+      "metrics": [
+        "requests_per_second",
+        "prompt_tokens_per_second",
+        "output_tokens_per_second",
+        "mean_ttft_ms",
+        "mean_itl_ms"
+      ],
+      "tags": [
+        "performance",
+        "kbl",
+        "guidellm"
+      ],
+      "primary_score": {
+        "metric": "output_tokens_per_second",
+        "lower_is_better": false
+      },
+      "pass_criteria": {
+        "threshold": 50
+      }
+    },
+    {
+      "id": "capacity",
+      "name": "최대 처리량 (용량 산정)",
+      "description": "throughput, 256/256 tokens",
+      "category": "performance",
+      "metrics": [
+        "requests_per_second",
+        "prompt_tokens_per_second",
+        "output_tokens_per_second",
+        "mean_ttft_ms",
+        "mean_itl_ms"
+      ],
+      "tags": [
+        "performance",
+        "kbl",
+        "guidellm"
+      ],
+      "primary_score": {
+        "metric": "requests_per_second",
+        "lower_is_better": false
+      },
+      "pass_criteria": {
+        "threshold": 1
+      }
+    }
+  ]
+}

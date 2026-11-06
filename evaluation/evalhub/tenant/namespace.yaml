@@ -9,6 +9,8 @@ metadata:
   labels:
     evalhub.trustyai.opendatahub.io/tenant: ""
     opendatahub.io/generated-namespace: "true"
+    # 대시보드가 데이터 사이언스 프로젝트로 인식해야 Evaluations 화면의 Project 목록에 나타난다
+    opendatahub.io/dashboard: "true"
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false   # Git 에서 지워도 네임스페이스는 남긴다
     argocd.argoproj.io/sync-wave: "-1"

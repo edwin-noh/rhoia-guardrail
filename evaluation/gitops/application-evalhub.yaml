@@ -12,6 +12,7 @@ spec:
     path: evaluation/evalhub
   destination:
     server: https://kubernetes.default.svc
+    namespace: kbl-eval      # 매니페스트에 namespace 가 없는 리소스의 기본값 (모든 리소스는 namespace 를 명시함)
   syncPolicy:
     automated:
       selfHeal: true

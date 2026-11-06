@@ -1,0 +1,28 @@
+# rhoai-35 SNO 환경. 서빙 모델과 같은 model-hub 네임스페이스에 배포한다.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: model-hub
+
+resources:
+  - ../../base
+
+generatorOptions:
+  disableNameSuffixHash: true
+  labels:
+    app.kubernetes.io/part-of: kbl-nemo-guardrails
+
+configMapGenerator:
+  - name: nemo-models
+    files:
+      - models.yaml
+
+# 판정 모델이 다른 네임스페이스/클러스터에 있어 별도 토큰이 필요할 때 사용 (Secret 은 sealed-secrets 로 관리)
+# patches:
+#   - target:
+#       kind: NemoGuardrails
+#       name: kbl-nemo-guardrails
+#     patch: |-
+#       - op: replace
+#         path: /spec/env/1/valueFrom/secretKeyRef/name
+#         value: korean-guard-model-token

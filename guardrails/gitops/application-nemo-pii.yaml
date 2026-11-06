@@ -1,0 +1,32 @@
+# NeMo Guardrails 개인정보 가드. 부트스트랩 시 한 번 oc apply 한다 (appproject.yaml 먼저).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kbl-guardrails-nemo-pii
+  namespace: openshift-gitops
+spec:
+  project: kbl-guardrails
+  source:
+    repoURL: https://github.com/edwin-noh/rhoia-guardrail.git
+    targetRevision: main
+    path: guardrails/nemo-pii/overlays/rhoai-35-sno
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: model-hub
+  ignoreDifferences:
+    # SA 토큰 Secret 의 data 는 Kubernetes 가 채운다
+    - kind: Secret
+      name: nemo-guardrails-sa-token
+      jsonPointers:
+        - /data
+    # service-ca 가 CA 를 주입한다
+    - kind: ConfigMap
+      name: nemo-guardrails-service-ca
+      jsonPointers:
+        - /data
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - RespectIgnoreDifferences=true

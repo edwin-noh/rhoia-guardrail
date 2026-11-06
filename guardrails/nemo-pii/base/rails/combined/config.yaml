@@ -1,0 +1,31 @@
+# ③ ① + ② 결합. 비용이 낮은 정규식/Presidio 를 먼저, LLM 판정을 마지막에 수행한다.
+#    어느 하나라도 위반을 탐지하면 차단된다.
+rails:
+  config:
+    sensitive_data_detection:
+      input:
+        entities: [EMAIL_ADDRESS, PHONE_NUMBER, CREDIT_CARD, IP_ADDRESS, PERSON]
+      output:
+        entities: [EMAIL_ADDRESS, PHONE_NUMBER, CREDIT_CARD, IP_ADDRESS]
+    regex_detection:
+      input:
+        patterns: &kr_pii
+          - '(?<!\d)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])-?[1-8]\d{6}(?!\d)'
+          - '(?<!\d)01[016789][- .]?\d{3,4}[- .]?\d{4}(?!\d)'
+          - '(?<!\d)(?=(?:\d-?){10,})\d{3,6}-\d{2,6}-\d{2,7}(?!\d)'
+          - '주민\s*(등록)?\s*번호|외국인\s*등록\s*번호|여권\s*번호|비밀\s*번호|계좌\s*비밀번호'
+          - '\b(password|passwd|secret|api[_-]?key)\b'
+        case_insensitive: true
+      output:
+        patterns: *kr_pii
+        case_insensitive: true
+  input:
+    flows:
+      - regex check input
+      - detect sensitive data on input
+      - self check input
+  output:
+    flows:
+      - regex check output
+      - detect sensitive data on output
+      - self check output

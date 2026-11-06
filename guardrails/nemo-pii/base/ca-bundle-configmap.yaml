@@ -1,0 +1,8 @@
+# OpenShift service-ca 가 service-ca.crt 키를 주입한다. predictor(8443) TLS 신뢰용
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-guardrails-service-ca
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+data: {}

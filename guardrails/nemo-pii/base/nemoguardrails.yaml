@@ -1,0 +1,42 @@
+# NeMo Guardrails 서버. operator 가 같은 이름의 Deployment / Service / Route 를 만든다.
+# 각 config 는 [공용 모델 정의(nemo-models) + 정책(nemo-rails-*)] 두 ConfigMap 을
+# /app/config/<name>/ 한 디렉터리에 마운트하고, NeMo 가 디렉터리의 yaml 을 병합해 읽는다.
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: NemoGuardrails
+metadata:
+  name: kbl-nemo-guardrails
+  annotations:
+    # 호출자는 이 네임스페이스 서비스 view 권한이 있는 토큰이 필요하다
+    security.opendatahub.io/enable-auth: 'true'
+spec:
+  replicas: 1
+  nemoConfigs:
+    - name: combined          # ③ PII 탐지 + self-check (기본)
+      default: true
+      configMaps:
+        - nemo-models
+        - nemo-rails-combined
+    - name: pii-regex         # ① Presidio + 한국 PII regex (LLM 호출 없음)
+      configMaps:
+        - nemo-models
+        - nemo-rails-pii-regex
+    - name: self-check        # ② LLM 판정(의도 탐지)
+      configMaps:
+        - nemo-models
+        - nemo-rails-self-check
+  env:
+    # models.yaml 의 api_key_env_var 와 이름을 맞춘다
+    - name: MAIN_MODEL_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: nemo-guardrails-sa-token
+          key: token
+    - name: GUARD_MODEL_API_KEY       # 판정 모델이 다른 곳이면 overlay 에서 Secret 이름만 patch
+      valueFrom:
+        secretKeyRef:
+          name: nemo-guardrails-sa-token
+          key: token
+  caBundleConfig:
+    configMapName: nemo-guardrails-service-ca
+    configMapKeys:
+      - service-ca.crt

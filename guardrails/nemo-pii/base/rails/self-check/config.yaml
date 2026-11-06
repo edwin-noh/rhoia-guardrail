@@ -1,0 +1,9 @@
+# ② LLM self-check. 판정은 models.yaml 의 self_check_input / self_check_output 모델이 수행한다.
+#    (기본값은 서빙 모델과 동일. 한국어 특화 가드 모델로 바꾸려면 overlay 의 models.yaml 만 수정)
+rails:
+  input:
+    flows:
+      - self check input
+  output:
+    flows:
+      - self check output

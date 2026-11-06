@@ -1,0 +1,28 @@
+# 가드레일 전용 Argo CD 프로젝트. 클러스터 GitOps(cluster-config 등)와 분리한다.
+# - 이 리포만 소스로 허용
+# - model-hub 네임스페이스에만 배포
+# - 클러스터 범위 리소스 금지, 가드레일 구성에 필요한 네임스페이스 리소스만 허용
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: kbl-guardrails
+  namespace: openshift-gitops
+spec:
+  description: KB Life AI 가드레일 (NeMo Guardrails)
+  sourceRepos:
+    - https://github.com/edwin-noh/rhoia-guardrail.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: model-hub
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: ServiceAccount
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+    - group: trustyai.opendatahub.io
+      kind: NemoGuardrails

@@ -5,7 +5,6 @@ resources:
   - serviceaccount.yaml
   - sa-token-secret.yaml
   - rolebinding-view.yaml
-  - ca-bundle-configmap.yaml
   - nemoguardrails.yaml
 
 # CR 이 ConfigMap 이름을 직접 참조하므로 hash suffix 를 붙이지 않는다
@@ -14,7 +13,7 @@ generatorOptions:
   labels:
     app.kubernetes.io/part-of: kbl-nemo-guardrails
 
-# 정책(엔드포인트와 무관). 모델 엔드포인트는 overlay 의 nemo-models 에서 정의한다
+# 정책(엔드포인트와 무관). 모델 엔드포인트(models.yaml)는 overlay 가 각 ConfigMap 에 병합해 넣는다
 configMapGenerator:
   - name: nemo-rails-pii-regex
     files:

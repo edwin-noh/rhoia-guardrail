@@ -38,7 +38,9 @@ guardrails/
 └── tests/                       # cases.json + test-guardrails.sh
 ```
 
-`models.yaml`(엔드포인트)과 `rails/*`(정책)는 **서로 다른 ConfigMap**으로 만든다. CR이 두 ConfigMap을 `/app/config/<config_id>/` 한 디렉터리에 함께 마운트하고, NeMo가 그 디렉터리의 yaml 파일을 병합해서 읽는다. 따라서 모델을 바꿀 때 정책 파일은 건드리지 않아도 된다.
+엔드포인트는 overlay의 `models.yaml` **한 파일**에만 정의한다. overlay가 Kustomize `configMapGenerator`(`behavior: merge`)로 이 파일을 정책 ConfigMap 3개(`nemo-rails-*`)에 각각 넣는다. NeMo는 `/app/config/<config_id>/` 디렉터리의 yaml 파일을 병합해서 읽는다. 따라서 모델을 바꿀 때 정책 파일은 건드리지 않아도 된다.
+
+> 참고: `nemoConfigs[].configMaps`에 ConfigMap을 여러 개 지정하면, RHOAI 3.5 operator가 같은 경로에 중복 마운트해서 Deployment 생성이 실패한다(`mountPath must be unique`). 그래서 config마다 ConfigMap을 하나만 쓴다.
 
 ## 사전 조건
 

@@ -12,10 +12,17 @@ generatorOptions:
   labels:
     app.kubernetes.io/part-of: kbl-nemo-guardrails
 
+# models.yaml(모델 엔드포인트) 하나를 3개 정책 ConfigMap 에 모두 병합한다
 configMapGenerator:
-  - name: nemo-models
-    files:
-      - models.yaml
+  - name: nemo-rails-combined
+    behavior: merge
+    files: [models.yaml]
+  - name: nemo-rails-pii-regex
+    behavior: merge
+    files: [models.yaml]
+  - name: nemo-rails-self-check
+    behavior: merge
+    files: [models.yaml]
 
 # 판정 모델이 다른 네임스페이스/클러스터에 있어 별도 토큰이 필요할 때 사용 (Secret 은 sealed-secrets 로 관리)
 # patches:

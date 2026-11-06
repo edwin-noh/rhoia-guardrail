@@ -1,5 +1,5 @@
 # ① Presidio + 한국 PII 정규식. LLM 호출 없이 NeMo pod 안에서만 동작한다.
-# 모델 정의(models)는 같은 디렉터리에 마운트되는 nemo-models/models.yaml 에서 병합된다.
+# 모델 정의(models)는 overlay 가 같은 ConfigMap 에 넣어 주는 models.yaml 에서 병합된다.
 rails:
   config:
     sensitive_data_detection:

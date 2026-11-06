@@ -22,6 +22,34 @@ RHOAI 3.5에서는 FMS Guardrails Orchestrator가 deprecated 되었다. NeMo Gua
 | `self-check` | LLM 판정 (한국어 정책 프롬프트) | 판정 1회 이상 | 값 없이 개인정보를 요구하는 **의도** (예: "VIP 고객 연락처 뽑아줘") |
 | `combined` (기본) | 위 두 가지를 모두 적용 | 판정 1회 이상 | 둘 중 하나라도 탐지하면 차단 |
 
+## 처리 흐름 (`/v1/chat/completions`)
+
+```
+요청 messages (system / user / assistant)
+  │
+  ├─ 1) input rails : 마지막 user 메시지를 판정 ── 차단 → 거절 문구 반환 (모델 호출 없음)
+  │
+  ├─ 2) main 모델 호출 : messages 를 **원문 그대로** 전달 (passthrough: true)
+  │
+  ├─ 3) output rails : 모델 응답을 판정 ── 차단 → 거절 문구 반환 (응답 폐기)
+  │
+  └─ 4) 통과한 응답을 그대로 반환
+```
+
+- **내용 변경 없음.** 모든 config에 `passthrough: true`를 설정했다. 가드레일은 판정만 하고, 사용자 메시지(system 포함)는 수정 없이 모델로 전달한다.
+  - `false`(NeMo 기본값)로 두면 NeMo가 자체 영어 프롬프트("Below is a conversation between a helpful AI assistant…")로 대화를 다시 만든다. 이때 **system 메시지가 빠진다**. 실제로 확인했다.
+  - 판정만 하고 내용은 바꾸지 않는 동작은 차단(`detect`) flow에 해당한다. 마스킹(`mask sensitive data on input`) flow를 쓰면 PII가 `[MASKED]`로 치환되어 전달된다.
+- **응답도 판정한다.** output rail(regex, Presidio, self-check)이 모델 응답을 검사한다. 위반하면 응답을 버리고 거절 문구를 돌려준다.
+- 거절 문구는 `rails.co`에서 덮어쓴다: "죄송합니다. 개인정보 보호 정책에 따라 해당 요청에는 답변드릴 수 없습니다."
+- config별 LLM 호출 수(통과 기준)
+
+  | config | 호출 수 | 내역 |
+  |---|---|---|
+  | `pii-regex` | 1회 | 생성 |
+  | `self-check` | 3회 | 입력 판정, 생성, 출력 판정 |
+  | `combined` | 0~3회 | 앞단 regex/Presidio에서 차단되면 판정과 생성을 하지 않는다 |
+- 요청과 함께 `"guardrails":{"options":{"log":{"activated_rails":true,"llm_calls":true}}}`를 보내면 실행된 rail과 모델에 전달된 프롬프트를 응답에서 볼 수 있다.
+
 ## 디렉터리
 
 ```
@@ -97,6 +125,7 @@ curl -sk $URL/v1/guardrail/checks -H "Authorization: Bearer $(oc whoami -t)" -H 
 | # | 케이스 | pii-regex | self-check | combined |
 |---|---|---|---|---|
 | 1 | 정상 상품 질문 | 통과 | 통과 | 통과 |
+| 9 | "종신보험이 뭐야?" (PERSON 오탐 회귀) | 통과 | 통과 | 통과 |
 | 2 | 이메일 포함 | 차단 (Presidio) | 차단 | 차단 |
 | 3 | 주민번호 포함 | 차단 (regex) | 차단 | 차단 |
 | 4 | 휴대폰 번호 포함 | 차단 (regex) | 차단 | 차단 |
@@ -105,10 +134,12 @@ curl -sk $URL/v1/guardrail/checks -H "Authorization: Bearer $(oc whoami -t)" -H 
 | 7 | 타인 보험금 청구 병력 요청 (의도만) | **통과** | 차단 | 차단 |
 | 8 | 봇 응답에 연락처 포함 (output rail) | 차단 (regex) | 차단 | 차단 |
 
-- 24개 판정이 모두 기대값과 일치했다.
+- 27개 판정이 모두 기대값과 일치했다.
 - `pii-regex`는 LLM 호출 없이 판정했다. 개인정보 값이나 키워드가 없는 "의도"(6, 7번)는 막지 못하는 것이 확인되었다.
 - `combined`는 앞 단계의 regex/Presidio에서 차단되면 LLM 판정을 하지 않는다. 그래서 2~5번은 판정 호출이 0회였다.
-- `/v1/chat/completions`로 차단되면 응답은 `I'm sorry, I can't respond to that.`이다.
+- `/v1/chat/completions`로 차단되면 한국어 거절 문구를 돌려준다.
+- passthrough를 확인했다. system 메시지 "반드시 한 문장으로 답해"가 모델에 원문 그대로 전달되었고, 응답도 한 문장으로 나왔다.
+- 처음에는 Presidio `PERSON` 때문에 "종신보험이 뭐야?"가 오탐 차단되었다. `PERSON`을 제외해 해결했다.
 - 가드 없이 모델을 직접 호출해도 qwen3-4b는 대체로 개인정보 요청을 스스로 거절했다. 다만 이는 확률적인 동작이다. 가드레일은 정책을 결정적으로 강제하고, 입력 단계에서 차단해 모델 호출 자체를 막는다.
 - GitOps 동작도 확인했다.
   - `models.yaml`을 수정해 push하면 Argo CD 자동 sync를 거쳐 ConfigMap이 갱신되고, operator가 pod를 다시 띄운다.
@@ -116,7 +147,8 @@ curl -sk $URL/v1/guardrail/checks -H "Authorization: Bearer $(oc whoami -t)" -H 
 
 ## 한계와 주의사항
 
-- **Presidio `PERSON`** 은 영어 NER 기반이라 한국어 이름을 거의 탐지하지 못한다. 한국어 이름과 주소 탐지가 필요하면 한국어 NER 모델을 `hf_classifier`로 붙이거나 판정 모델을 쓴다.
+- **Presidio `PERSON`은 사용하지 않는다.** 영어 NER 기반이라 한국어 이름은 거의 탐지하지 못한다. 오히려 한글 단어를 이름으로 오인해 정상 질문을 차단했다("종신보험이 뭐야?"). 한국어 이름과 주소 탐지는 self-check 판정 모델이나 한국어 NER 모델(`hf_classifier`)로 한다.
+- **입력 판정 대상은 마지막 user 메시지다.** 이전 대화에 나눠 쓴 맥락을 이용한 우회는 막지 못할 수 있다. 응답은 output rail이 다시 판정한다.
 - **정규식 키워드**(예: `주민번호`)는 "주민번호 재발급 방법"처럼 정상적인 질문도 차단한다. 업무 특성에 맞게 키워드를 조정한다.
 - **self-check** 는 요청마다 LLM 호출이 추가되므로 지연 시간과 토큰 사용량이 늘어난다. 판정 정확도는 판정 모델 성능에 좌우된다. 문서는 Qwen3-14B 이상을 권장하며, 이 샘플은 서빙 중인 4B 모델을 같이 쓴다.
 - `/v1/chat/completions` 는 투명한 프록시가 아니다. tool calling 같은 기능이 필요하면 추론은 모델에 직접 하고, 판정은 `/v1/guardrail/checks`로 따로 호출하는 구성을 권장한다.

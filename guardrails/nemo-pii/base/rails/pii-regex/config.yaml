@@ -1,5 +1,9 @@
 # ① Presidio + 한국 PII 정규식. LLM 호출 없이 NeMo pod 안에서만 동작한다.
 # 모델 정의(models)는 overlay 가 같은 ConfigMap 에 넣어 주는 models.yaml 에서 병합된다.
+# 원래 messages(system 포함)를 그대로 main 모델에 전달한다. 가드레일은 입력/출력 판정만 한다.
+# (false 면 NeMo 가 자체 'general' 프롬프트로 대화를 재구성해 system 메시지가 빠진다)
+passthrough: true
+
 rails:
   config:
     sensitive_data_detection:
@@ -9,7 +13,8 @@ rails:
           - PHONE_NUMBER
           - CREDIT_CARD
           - IP_ADDRESS
-          - PERSON          # 영어 NER 기반이라 한국어 이름은 거의 탐지하지 못한다
+          # PERSON 은 쓰지 않는다: 영어 NER 이라 한국어 이름은 못 잡고, 한글 단어를 이름으로 오탐한다
+          #   (예: '종신보험이 뭐야?' 차단). 한국어 이름이 섞인 요청은 self-check 가 담당한다
       output:
         entities:
           - EMAIL_ADDRESS

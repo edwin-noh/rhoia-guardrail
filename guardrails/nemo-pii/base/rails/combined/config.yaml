@@ -1,10 +1,14 @@
 # ③ ① + ② 결합. 비용이 낮은 정규식/Presidio 를 먼저, LLM 판정을 마지막에 수행한다.
 #    어느 하나라도 위반을 탐지하면 차단된다.
+# 원래 messages(system 포함)를 그대로 main 모델에 전달한다. 가드레일은 입력/출력 판정만 한다.
+# (false 면 NeMo 가 자체 'general' 프롬프트로 대화를 재구성해 system 메시지가 빠진다)
+passthrough: true
+
 rails:
   config:
     sensitive_data_detection:
       input:
-        entities: [EMAIL_ADDRESS, PHONE_NUMBER, CREDIT_CARD, IP_ADDRESS, PERSON]
+        entities: [EMAIL_ADDRESS, PHONE_NUMBER, CREDIT_CARD, IP_ADDRESS]   # PERSON 제외 (한국어 오탐)
       output:
         entities: [EMAIL_ADDRESS, PHONE_NUMBER, CREDIT_CARD, IP_ADDRESS]
     regex_detection:

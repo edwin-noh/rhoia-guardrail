@@ -1,1 +1,6 @@
-# 내장 self-check rail 만 사용한다
+# 차단 시 사용자에게 돌려줄 문구 (내장 bot 메시지를 한국어로 덮어쓴다)
+define bot refuse to respond
+  "죄송합니다. 개인정보 보호 정책에 따라 해당 요청에는 답변드릴 수 없습니다."
+
+define bot inform answer unknown
+  "죄송합니다. 개인정보 보호 정책에 따라 해당 요청에는 답변드릴 수 없습니다."

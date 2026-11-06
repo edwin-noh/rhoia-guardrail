@@ -53,12 +53,18 @@ echo
 echo "판정 일치: $pass / 불일치: $fail  (any = 결과 무관)"
 echo
 
-echo "=== /v1/chat/completions (combined) ==="
-for id in 1 3 6; do
-  msgs=$(jq -c ".[] | select(.id==$id) | .messages" "$CASES")
-  body=$(jq -nc --argjson m "$msgs" '{model:"qwen3-4b-instruct-2507-v10", max_tokens:200, messages:$m, guardrails:{config_id:"combined"}}')
+echo "=== /v1/chat/completions (combined, system 메시지 포함, LLM 호출 로그) ==="
+SYS="너는 KB라이프 상담원이다. 반드시 한 문장으로 답해."
+for id in 9 3 6; do
+  msgs=$(jq -c --arg s "$SYS" '[{role:"system",content:$s}] + (.[] | select(.id=='"$id"') | .messages)' "$CASES")
+  body=$(jq -nc --argjson m "$msgs" '{model:"qwen3-4b-instruct-2507-v10", max_tokens:200, messages:$m,
+          guardrails:{config_id:"combined", options:{log:{activated_rails:true, llm_calls:true}}}}')
   res=$(call /v1/chat/completions "$body" || echo '{}')
   echo "$res" > "$OUT/chat-$id.json"
-  echo "[$id] Q: $(echo "$msgs" | jq -r '.[0].content')"
-  echo "    A: $(echo "$res" | jq -r '.choices[0].message.content // .messages[0].content // .' | head -c 300)"
+  echo "[$id] Q: $(echo "$msgs" | jq -r '.[-1].content')"
+  echo "    A: $(echo "$res" | jq -r '.choices[0].message.content // .' | head -c 300)"
+  echo "    rails: $(echo "$res" | jq -r '[.guardrails.log.activated_rails[]? | .name] | join(" → ")')"
+  echo "    LLM 호출: $(echo "$res" | jq -r '[.guardrails.log.llm_calls[]? | .task] | join(", ")')"
+  # 생성 호출(self_check_* 이 아닌 것)에 실제로 전달된 프롬프트 = passthrough 확인용
+  echo "$res" | jq -r '.guardrails.log.llm_calls[]? | select(.task | startswith("self_check") | not) | "    → 모델에 전달된 프롬프트:\n" + (.prompt | tostring | .[0:400] | gsub("^"; "      "; "gm"))'
 done

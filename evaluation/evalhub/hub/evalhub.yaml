@@ -14,8 +14,9 @@ spec:
     - lm-evaluation-harness               # 시스템 제공
     - kbl-lm-eval-ko                      # ★ 커스텀: lm-eval + KMMLU (provider-lm-eval-ko.yaml)
     - kbl-golden                          # ★ 커스텀: KB Life 골든셋 adapter (provider-kbl-golden.yaml)
-  collections:
-    - kbl-release-v1                      # ★ 커스텀: 배포 승인용 묶음 (collection-kbl-release.yaml)
+  # 배포 승인용 컬렉션(kbl-release-v1)은 test_data_ref(S3) 를 포함하므로 REST API 로 테넌트에 등록한다
+  # (jobs/create-collection.sh). ConfigMap(system collection) 로더는 test_data_ref.s3.secret_ref 를
+  # 인식하지 못해 서버가 기동 실패한다 (RHOAI 3.5 에서 확인).
   env:
     - name: MLFLOW_TRACKING_URI
       value: https://mlflow.redhat-ods-applications.svc:8443

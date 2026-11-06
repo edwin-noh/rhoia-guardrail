@@ -13,7 +13,13 @@ EVALHUB_URL=${EVALHUB_URL:-https://$(oc get route evalhub -n redhat-ods-applicat
 TOKEN=${TOKEN:-$(oc create token kbl-eval-runner -n "$TENANT" --duration=2h)}
 api() { curl -sk -H "Authorization: Bearer $TOKEN" -H "X-Tenant: $TENANT" -H 'Content-Type: application/json' "$@"; }
 
-job=$(api -X POST "$EVALHUB_URL/api/v1/evaluations/jobs" -d @"$BODY")
+REQ=$(cat "$BODY")
+if [[ $REQ == *__COLLECTION_ID__* ]]; then   # 컬렉션 요청이면 등록(또는 기존) id 로 치환
+  COLLECTION_ID=${COLLECTION_ID:-$(TOKEN=$TOKEN "$DIR/create-collection.sh")}
+  REQ=${REQ//__COLLECTION_ID__/$COLLECTION_ID}
+  echo "collection: $COLLECTION_ID"
+fi
+job=$(api -X POST "$EVALHUB_URL/api/v1/evaluations/jobs" -d "$REQ")
 id=$(echo "$job" | jq -r '.resource.id // .id // empty')
 [[ -n $id ]] || { echo "제출 실패: $job"; exit 1; }
 echo "job: $id  ($(jq -r .name "$BODY"))"

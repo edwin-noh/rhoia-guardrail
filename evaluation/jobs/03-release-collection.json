@@ -11,6 +11,6 @@
     "release-gate"
   ],
   "collection": {
-    "id": "kbl-release-v1"
+    "id": "__COLLECTION_ID__"
   }
 }

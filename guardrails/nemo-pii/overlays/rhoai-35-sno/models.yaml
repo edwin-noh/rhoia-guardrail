@@ -8,6 +8,8 @@
 #   조건: OpenAI 호환 /v1/chat/completions 를 제공하고, 판정 프롬프트에 Yes/No 로 답할 수 있어야 한다.
 #   토큰이 다르면 kustomization.yaml 의 GUARD_MODEL_API_KEY patch 로 Secret 을 바꾼다.
 #   base_url 은 반드시 /v1 로 끝나야 한다.
+#   예) model: <korean-guard-model>
+#       base_url: https://<korean-guard-model>-predictor.<namespace>.svc.cluster.local:8443/v1
 models:
   - type: main
     engine: openai

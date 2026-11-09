@@ -25,6 +25,17 @@ guidellm/
 - provider `kbl_perf`는 EvalHub CR(ConfigMap)을 고치지 않도록 **REST API로 테넌트에 등록**한다. `run.sh`가 자동으로 등록하거나 갱신한다.
 - 시나리오를 한 job에 몰아 넣으면 EvalHub가 pod를 **동시에** 띄워 서로 부하를 간섭한다. 그래서 `run.py`는 시나리오마다 job을 하나씩 제출하고, 끝나기를 기다렸다가 다음을 실행한다.
 
+## 처음 이해할 때: 단일 파일 예제
+
+`basic_job.py`는 설정 파일이나 시나리오 파일 없이, EvalHub Python SDK로 GuideLLM job 하나를 등록·제출·대기·결과 출력까지 하는 예제다. URL과 부하는 파일 맨 위에서 직접 고친다.
+```bash
+uv run --with "eval-hub-sdk[client]==0.4.4" python guidellm/basic_job.py
+```
+- SDK 버전은 EvalHub 서버 버전(0.4.4)에 맞춘다.
+- `EvalHubClient`는 비동기다. 스크립트에서는 `SyncEvalHubClient`를 쓴다.
+- SDK 응답 모델은 서버의 `test`(PASS/FAIL) 필드를 버리므로, 판정은 파일 안의 기준값으로 계산한다.
+- p95 요약 표는 `client.jobs.get_logs()`로 가져온다. `oc logs`가 필요 없다.
+
 ## 실행
 
 ```bash

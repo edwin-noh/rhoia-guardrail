@@ -27,7 +27,9 @@ guidellm/
 
 ## 처음 이해할 때: 단일 파일 예제
 
-`basic_job.py`는 설정 파일이나 시나리오 파일 없이, EvalHub Python SDK로 GuideLLM job 하나를 등록·제출·대기·결과 출력까지 하는 예제다. URL과 부하는 파일 맨 위에서 직접 고친다.
+`basic_job.py`는 설정 파일이나 시나리오 파일 없이, RHOAI에 포함된 **시스템 provider `guidellm`**으로 job 하나를 제출하고 대기한 뒤 결과를 출력하는 예제다. EvalHub Python SDK를 쓰고, provider는 새로 만들지 않는다. URL과 부하는 파일 맨 위에서 직접 고친다.
+- 전제: EvalHub CR(`evaluation/evalhub/hub/evalhub.yaml`)의 `spec.providers`에 `guidellm`이 켜져 있어야 한다. CRD 기본값(`garak`, `garak-kfp`, `lm-evaluation-harness`)에는 `guidellm`이 없다.
+- 벤치마크 id는 시스템 provider에 정의된 것(`concurrent`, `throughput`, `sweep`, `quick_perf_test` 등)을 쓴다. 실제 부하는 job `parameters`(`profile`, `rate`, `max_seconds`, `data`)가 정한다.
 ```bash
 uv run --with "eval-hub-sdk[client]==1.0.7" python guidellm/basic_job.py
 ```

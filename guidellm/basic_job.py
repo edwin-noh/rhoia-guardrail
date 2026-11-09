@@ -8,9 +8,10 @@ EvalHub SDK(eval-hub-sdk)로 아래 4단계를 보여준다.
   4) 결과 출력       : GuideLLM 이 측정한 지표 + 로그의 p95 요약 표
 
 실행 (설치 없이):
-    uv run --with "eval-hub-sdk[client]==0.4.4" python basic_job.py
-또는  pip install "eval-hub-sdk[client]==0.4.4" && python3 basic_job.py
-(oc login 상태여야 함. 토큰은 `oc whoami -t` 로 가져온다. SDK 버전은 EvalHub 서버 버전에 맞춘다)
+    uv run --with "eval-hub-sdk[client]==1.0.7" python basic_job.py
+또는  pip install "eval-hub-sdk[client]==1.0.7" && python3 basic_job.py
+(oc login 상태여야 함. 토큰은 `oc whoami -t` 로 가져온다.
+ RHOAI 3.5 EvalHub 서버는 1.0.0 이다. SDK 는 같은 1.0.x 를 쓴다 — 1.0.0, 1.0.7 로 동작 확인)
 """
 import json
 import subprocess

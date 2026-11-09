@@ -29,9 +29,9 @@ guidellm/
 
 `basic_job.py`는 설정 파일이나 시나리오 파일 없이, EvalHub Python SDK로 GuideLLM job 하나를 등록·제출·대기·결과 출력까지 하는 예제다. URL과 부하는 파일 맨 위에서 직접 고친다.
 ```bash
-uv run --with "eval-hub-sdk[client]==0.4.4" python guidellm/basic_job.py
+uv run --with "eval-hub-sdk[client]==1.0.7" python guidellm/basic_job.py
 ```
-- SDK 버전은 EvalHub 서버 버전(0.4.4)에 맞춘다.
+- SDK는 EvalHub 서버와 같은 메이저·마이너(1.0.x)를 쓴다. RHOAI 3.5 서버는 1.0.0이고, SDK 1.0.0과 1.0.7로 동작을 확인했다. 서버 버전은 `oc logs -n redhat-ods-applications deploy/evalhub -c evalhub | grep "API Server starting"`로 확인한다.
 - `EvalHubClient`는 비동기다. 스크립트에서는 `SyncEvalHubClient`를 쓴다.
 - SDK 응답 모델은 서버의 `test`(PASS/FAIL) 필드를 버리므로, 판정은 파일 안의 기준값으로 계산한다.
 - p95 요약 표는 `client.jobs.get_logs()`로 가져온다. `oc logs`가 필요 없다.

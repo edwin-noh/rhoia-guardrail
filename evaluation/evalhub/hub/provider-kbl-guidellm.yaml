@@ -1,0 +1,177 @@
+# ★ 커스텀 provider: 시스템 GuideLLM 과 같은 벤치마크 정의 + 최신 adapter 이미지 (v0.7.2)
+#   시스템 provider(trustyai-service-operator-evalhub-provider-guidellm)는 RHOAI 3.5 기본 이미지 v0.5.0 을 쓰는데,
+#   v0.5.0 adapter 는 결과를 MLflow 에 기록하지 않는다. v0.7.2 adapter 는 job 종료 시
+#   지표(요청/초, 토큰/초, TTFT/ITL 평균)와 결과 파일(benchmarks.json/csv/yaml, p95 포함)을 MLflow run 에 남긴다.
+#   (job 요청에 experiment 가 있어야 기록된다)
+#   - 시스템 ConfigMap 은 operator 가 관리하므로 이미지를 바꿀 수 없어 별도 provider 로 둔다.
+#   - 이름을 kbl-provider-* 로 해서 operator 복사본 이름(evalhub-provider-*)과 겹치지 않게 한다.
+#   - 커뮤니티 이미지다. RHOAI 업그레이드 시 시스템 provider 의 이미지/벤치마크와 다시 비교한다.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kbl-provider-guidellm
+  namespace: redhat-ods-applications
+  labels:
+    trustyai.opendatahub.io/evalhub-provider-type: system
+    trustyai.opendatahub.io/evalhub-provider-name: kbl-guidellm
+data:
+  kbl_guidellm.yaml: |
+    id: kbl_guidellm
+    name: GuideLLM (v0.7.2, MLflow)
+    title: GuideLLM (v0.7.2, MLflow 기록)
+    description: Performance benchmarking framework for LLM inference servers
+    runtime:
+      k8s:
+        image: quay.io/evalhub/community-guidellm@sha256:c47ac0bc122133ee4709e33c5144da16ee1e1d9e8b9ba6f5470ef16a1e7efeba   # v0.7.2
+        entrypoint:
+          - python
+          - main.py
+        cpu_request: 100m
+        memory_request: 128Mi
+        cpu_limit: 1000m
+        memory_limit: 2Gi
+      local:
+        # used for local mode tests (FVT)
+        command: python tests/features/test_data/runtime/main.py
+    benchmarks:
+      # Execution profiles - comprehensive performance testing
+      - id: sweep
+        name: Auto-discover optimal load
+        description: |-
+          Automatically sweeps from low to high concurrency to find the best throughput-latency tradeoff.
+        category: performance
+        metrics:
+          - requests_per_second
+          - prompt_tokens_per_second
+          - output_tokens_per_second
+          - mean_ttft_ms
+          - mean_itl_ms
+        tags:
+          - performance
+          - throughput
+          - latency
+          - guidellm
+          - auto
+        primary_score:
+          metric: output_tokens_per_second
+          lower_is_better: false
+        pass_criteria:
+          threshold: 10.0
+      - id: throughput
+        name: Maximum throughput discovery
+        description: |-
+          Finds the server's maximum requests-per-second by gradually increasing load until saturation.
+        category: performance
+        metrics:
+          - requests_per_second
+          - prompt_tokens_per_second
+          - output_tokens_per_second
+          - mean_ttft_ms
+          - mean_itl_ms
+        tags:
+          - performance
+          - throughput
+          - guidellm
+          - saturation
+        primary_score:
+          metric: output_tokens_per_second
+          lower_is_better: false
+        pass_criteria:
+          threshold: 10.0
+      - id: concurrent
+        name: Fixed concurrency stress test
+        description: Measures latency and throughput under a fixed number of simultaneous requests.
+        category: performance
+        metrics:
+          - requests_per_second
+          - prompt_tokens_per_second
+          - output_tokens_per_second
+          - mean_ttft_ms
+          - mean_itl_ms
+        tags:
+          - performance
+          - concurrency
+          - guidellm
+        primary_score:
+          metric: output_tokens_per_second
+          lower_is_better: false
+        pass_criteria:
+          threshold: 10.0
+      - id: constant
+        name: Steady-state load test
+        description: Measures performance under a sustained, constant request rate over time.
+        category: performance
+        metrics:
+          - requests_per_second
+          - prompt_tokens_per_second
+          - output_tokens_per_second
+          - mean_ttft_ms
+          - mean_itl_ms
+        tags:
+          - performance
+          - constant_rate
+          - guidellm
+        primary_score:
+          metric: output_tokens_per_second
+          lower_is_better: false
+        pass_criteria:
+          threshold: 10.0
+      - id: poisson
+        name: Realistic traffic simulation
+        description: Simulates real-world traffic patterns using Poisson-distributed request arrivals.
+        category: performance
+        metrics:
+          - requests_per_second
+          - prompt_tokens_per_second
+          - output_tokens_per_second
+          - mean_ttft_ms
+          - mean_itl_ms
+        tags:
+          - performance
+          - poisson
+          - realistic
+          - guidellm
+        primary_score:
+          metric: output_tokens_per_second
+          lower_is_better: false
+        pass_criteria:
+          threshold: 10.0
+      # Pre-configured benchmark suites
+      - id: quick_perf_test
+        name: Quick performance snapshot
+        description: Fast sweep-based evaluation with limited samples for rapid performance assessment.
+        category: performance
+        metrics:
+          - requests_per_second
+          - mean_ttft_ms
+          - mean_itl_ms
+        tags:
+          - performance
+          - quick
+          - guidellm
+          - suite
+        primary_score:
+          metric: requests_per_second
+          lower_is_better: false
+        pass_criteria:
+          threshold: 1.0
+      - id: comprehensive_perf_test
+        name: Full performance characterization
+        description: End-to-end evaluation across all load profiles for complete performance understanding.
+        category: performance
+        metrics:
+          - requests_per_second
+          - prompt_tokens_per_second
+          - output_tokens_per_second
+          - mean_ttft_ms
+          - mean_itl_ms
+        tags:
+          - performance
+          - comprehensive
+          - guidellm
+          - suite
+        primary_score:
+          metric: output_tokens_per_second
+          lower_is_better: false
+        pass_criteria:
+          threshold: 10.0

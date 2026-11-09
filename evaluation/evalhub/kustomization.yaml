@@ -15,4 +15,5 @@ resources:
   # EvalHub 서버 + 커스텀 provider / collection (redhat-ods-applications)
   - hub/provider-lm-eval-ko.yaml
   - hub/provider-kbl-golden.yaml
+  - hub/provider-kbl-guidellm.yaml
   - hub/evalhub.yaml

@@ -1,10 +1,10 @@
 {
   "name": "kbl_perf",
   "title": "KB Life 서빙 성능 (GuideLLM)",
-  "description": "KB Life 업무 시나리오(상담 챗봇, RAG 상담, 문서 요약, 최대 처리량)별 서빙 성능과 SLA 측정. 시스템 GuideLLM adapter 이미지 재사용.",
+  "description": "KB Life 업무 시나리오(상담 챗봇, RAG 상담, 문서 요약, 최대 처리량)별 서빙 성능과 SLA 측정. GuideLLM adapter v0.7.2 이미지(결과를 MLflow 에 기록).",
   "runtime": {
     "k8s": {
-      "image": "quay.io/evalhub/community-guidellm:v0.5.0",
+      "image": "quay.io/evalhub/community-guidellm@sha256:c47ac0bc122133ee4709e33c5144da16ee1e1d9e8b9ba6f5470ef16a1e7efeba",
       "entrypoint": [
         "python",
         "main.py"

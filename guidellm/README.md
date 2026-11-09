@@ -27,9 +27,10 @@ guidellm/
 
 ## 처음 이해할 때: 단일 파일 예제
 
-`basic_job.py`는 설정 파일이나 시나리오 파일 없이, RHOAI에 포함된 **시스템 provider `guidellm`**으로 job 하나를 제출하고 대기한 뒤 결과를 출력하는 예제다. EvalHub Python SDK를 쓰고, provider는 새로 만들지 않는다. URL과 부하는 파일 맨 위에서 직접 고친다.
-- 전제: EvalHub CR(`evaluation/evalhub/hub/evalhub.yaml`)의 `spec.providers`에 `guidellm`이 켜져 있어야 한다. CRD 기본값(`garak`, `garak-kfp`, `lm-evaluation-harness`)에는 `guidellm`이 없다.
-- 벤치마크 id는 시스템 provider에 정의된 것(`concurrent`, `throughput`, `sweep`, `quick_perf_test` 등)을 쓴다. 실제 부하는 job `parameters`(`profile`, `rate`, `max_seconds`, `data`)가 정한다.
+`basic_job.py`는 설정 파일이나 시나리오 파일 없이, EvalHub provider **`kbl_guidellm`**으로 job 하나를 제출하고 대기한 뒤 결과를 출력하는 예제다. EvalHub Python SDK를 쓰고, provider는 새로 만들지 않는다. 결과는 MLflow에도 남는다. URL과 부하는 파일 맨 위에서 직접 고친다.
+- 전제: EvalHub CR(`evaluation/evalhub/hub/evalhub.yaml`)의 `spec.providers`에 `kbl-guidellm`이 켜져 있어야 한다. CRD 기본값(`garak`, `garak-kfp`, `lm-evaluation-harness`)에는 GuideLLM이 없다.
+- `kbl_guidellm`은 시스템 provider `guidellm`과 벤치마크 정의가 같고, adapter 이미지만 v0.5.0에서 **v0.7.2**로 바꾼 커스텀 provider다(`evaluation/evalhub/hub/provider-kbl-guidellm.yaml`).
+- 벤치마크 id는 provider에 정의된 것(`concurrent`, `throughput`, `sweep`, `quick_perf_test` 등)을 쓴다. 실제 부하는 job `parameters`(`profile`, `rate`, `max_seconds`, `data`)가 정한다.
 ```bash
 uv run --with "eval-hub-sdk[client]==1.0.7" python guidellm/basic_job.py
 ```
@@ -37,6 +38,22 @@ uv run --with "eval-hub-sdk[client]==1.0.7" python guidellm/basic_job.py
 - `EvalHubClient`는 비동기다. 스크립트에서는 `SyncEvalHubClient`를 쓴다.
 - SDK 응답 모델은 서버의 `test`(PASS/FAIL) 필드를 버리므로, 판정은 파일 안의 기준값으로 계산한다.
 - p95 요약 표는 `client.jobs.get_logs()`로 가져온다. `oc logs`가 필요 없다.
+
+## MLflow에서 결과 보기
+
+| provider | adapter 이미지 | MLflow 기록 |
+|---|---|---|
+| `guidellm` (RHOAI 3.5 시스템) | v0.5.0 | 없음. EvalHub 서버가 만든 빈 job run(RUNNING)과 `evaluation-card.json`만 남는다 |
+| `kbl_guidellm`, `kbl_perf` (이 리포) | v0.7.2 | 벤치마크별 run에 **Metrics**(요청/초, 토큰/초, TTFT·ITL 평균)와 **Artifacts**(`benchmarks.json`, `.csv`, `.html`, p95 등 분포와 차트 리포트 포함)가 남는다 |
+
+- job 요청에 `experiment`가 있어야 기록된다. 없으면 adapter가 MLflow 기록을 건너뛴다.
+- 보는 곳: RHOAI 대시보드 → MLflow → workspace `kbl-eval` → experiment(`guidellm_basic_<모델>`, `kbl-qwen3-4b-perf`).
+  - 이름에 `<job-id>_0`처럼 번호가 붙은 run이 벤치마크 결과다.
+  - job 이름 그대로인 run은 EvalHub 서버가 만든 요약 run이며 `evaluation-card.json`만 있다.
+- run을 여러 개 선택해 Compare 하면 실행 간 지표를 나란히 비교할 수 있다.
+- v0.7.2는 RHOAI 3.5 기본 제공 버전보다 새로운 커뮤니티 이미지다. RHOAI를 업그레이드할 때 시스템 provider와 다시 비교한다.
+- artifact 구성은 `outputs` 파라미터에 따라 다르다. `basic_job.py`는 지정하지 않아 기본값(json, csv, html)이 되고, `run.sh`는 `json,csv,yaml`을 지정한다. HTML 리포트는 템플릿을 인터넷에서 받으므로 폐쇄망에서는 빼야 한다.
+- 새 이미지를 처음 받을 때 GuideLLM 이미지가 수 GB라 SNO 디스크가 임계치를 넘을 수 있다. 이 lab에서는 v0.7.2를 받은 직후 DiskPressure taint가 걸려 다음 job이 1분 정도 스케줄링되지 못했다. 쓰지 않는 이미지 버전은 정리한다.
 
 ## 실행
 
@@ -64,7 +81,7 @@ MAX_REQUESTS=20 ./run.sh                    # 요청 수로 제한 (시간보다
 
 지표 출처:
 - 평균값은 EvalHub job 결과에서 온다. MLflow와 대시보드에서도 같은 값을 본다.
-- 중앙값/p95와 요청 수는 GuideLLM이 평가 pod 로그에 출력하는 요약 표에서 `report.py`가 읽는다. GuideLLM adapter v0.5.0은 상세 결과(`benchmarks.json`)를 MLflow로 올리지 않는다. 평가 pod가 정리된 뒤에는 이 칸이 `-`로 표시된다.
+- 중앙값/p95와 요청 수는 GuideLLM이 평가 pod 로그에 출력하는 요약 표에서 `report.py`가 읽는다. 평가 pod가 정리된 뒤에는 이 칸이 `-`로 표시된다. 이때는 MLflow artifact의 `benchmarks.json`에서 같은 값을 볼 수 있다(adapter v0.7.2).
 
 ## 시나리오 (`scenarios.yaml`)
 

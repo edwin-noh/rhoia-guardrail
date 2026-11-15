@@ -8,8 +8,8 @@ RHOAI 3.5 기본 기능([01-capabilities.md](01-capabilities.md))을 바탕으�
 | # | 항목 | 상태 | 위치 |
 |---|---|---|---|
 | 1 | 대상 정의와 실행기 | 코드 완료 | `targets.yaml`, `run.py`(대상 × 시나리오, `max_model_len` 초과 시나리오 건너뜀), `config.env`(`TARGETS`) |
-| 2 | Raw 경로 (8443, SA 토큰) | 매니페스트 작성, **클러스터 미적용** | `setup-targets.sh raw`(Secret `kbl-perf-raw`), rhoai-serving-gitops `ops/agent/kbl-eval.yaml`(RoleBinding), `evaluation/evalhub/tenant/namespace.yaml`(라벨) |
-| 3 | MaaS 경로 (전용 구독) | 매니페스트 작성, **클러스터 미적용** | rhoai-serving-gitops `ops/platform/groups.yaml`(`kbl-perf-testers`), `ops/maas-policy/{authpolicy,subscription}-kbl-perf.yaml`, `setup-targets.sh maas`(Secret `kbl-perf-maas`) |
+| 2 | Raw 경로 (8443, SA 토큰) | **적용·검증 완료** (2026-11-15, chat_baseline 7/0건, TTFT p95 79ms) | `setup-targets.sh raw`(Secret `kbl-perf-raw`), rhoai-serving-gitops `ops/agent/kbl-eval.yaml`(RoleBinding), `evaluation/evalhub/tenant/namespace.yaml`(라벨) |
+| 3 | MaaS 경로 (전용 구독) | 그룹·구독·AuthPolicy 적용, **API key Secret 과 job 검증 남음** | rhoai-serving-gitops `ops/platform/groups.yaml`(`kbl-perf-testers`), `ops/maas-policy/{authpolicy,subscription}-kbl-perf.yaml`, `setup-targets.sh maas`(Secret `kbl-perf-maas`) |
 | 4 | 결과 리포트 | 완료 (예전 결과로 확인) | `report.py`: MLflow `benchmarks.json` 에서 p50/p95·요청 수 읽기, p95 판정, 대상 비교 표 |
 | 5 | 모니터링 연계 | 완료 (링크 생성까지) | `report.py` + `targets.yaml` `dashboards`: 측정 구간 Grafana 링크. `kbl-model-serving`/`kbl-maas-usage` GrafanaDashboard 는 아직 클러스터에 없다(`observability/` 에서 적용 필요) |
 | 6 | 고객 프롬프트 | 코드 완료, **실측 미확인** | `scenarios.yaml` `customer_prompts`(주석), `prompts-example.jsonl`, `provider-kbl-perf.json` 벤치마크 추가, `run.py` 가 `data`·`test_data_ref` 전달 |
@@ -19,7 +19,12 @@ RHOAI 3.5 기본 기능([01-capabilities.md](01-capabilities.md))을 바탕으�
 `api-key` 키가 없으면 job SA 토큰을 Bearer 로 넣는다. 그래서 Raw 는 `ca_cert`(service CA)만, MaaS 는 `api-key` + `ca_cert`(인그레스 CA)를 넣는다.
 근거는 eval-hub 소스(`internal/eval_runtime_sidecar/proxy/http_client.go`, `model_proxy.go`)와, 클러스터의 `eval-runtime-sidecar` 바이너리에 같은 메시지 문자열이 있다는 점이다. 3.5 문서에는 `ca_cert` 가 나오지 않는다(*Evaluating AI systems* 2.15, 2.16 은 `api-key` 와 SA 토큰만 설명).
 
-**남은 확인 (클러스터 변경 필요)**: 정지된 모델(`serving.kserve.io/stop`) 기동, GitOps 반영, Secret 생성, 짧은 job 으로 Raw·MaaS 200 응답 확인, MaaS body 의 model 이름(`qwen3-1-7b`), `kbl-maas-usage` 의 subscription 레이블 값.
+**검증 중 발견한 것 (2026-11-15)**
+- `--reasoning-parser=qwen3` 로 뜬 모델을 chat(`/v1/chat/completions`)으로 재면 토큰이 `reasoning_content` 로 나가 GuideLLM 0.5.3 이 TTFT·ITL 을 0 으로 기록한다. adapter 에 thinking 을 끄는 요청 옵션을 넘길 방법도 없다. 그래서 `targets.yaml` 에서 `request_type: text_completions` 로 엔진의 첫 토큰 시간을 잰다.
+- EvalHub 서버가 MLflow 보다 먼저 떠서 workspace 지원 확인에 실패하면, 그 프로세스가 끝날 때까지 job 제출이 "Workspace context is required" 로 거부된다. evalhub pod 를 재시작하면 해결된다.
+- `kbl-ops-platform` 앱은 자동 sync 가 아니라 Group 은 수동 sync 가 필요하다.
+
+**남은 확인**: `kbl-perf-testers`(ops) 사용자의 MaaS API key 로 Secret `kbl-perf-maas` 생성 → MaaS job 검증(body 의 model 이름 `qwen3-1-7b`, 429 미발생), `kbl-maas-usage` 의 subscription 레이블 값, 전체 시나리오 실측.
 
 ## 1. 요구 사항
 

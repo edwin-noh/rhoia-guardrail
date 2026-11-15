@@ -123,6 +123,8 @@ def judge(rule: dict, m: dict, state: str | None) -> tuple[str, str]:
     criterion = f"{metric} {op} {limit:g}"
     if state != "completed":
         return state or "-", criterion
+    if m.get("ok") == 0 and m.get("errored"):
+        return f"측정 실패 (전부 오류 {m['errored']}건)", criterion
     value = m.get(metric)
     if value is None:
         return "판정불가", criterion

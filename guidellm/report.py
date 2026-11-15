@@ -126,6 +126,8 @@ def judge(rule: dict, m: dict, state: str | None) -> tuple[str, str]:
     value = m.get(metric)
     if value is None:
         return "판정불가", criterion
+    if "ttft" in metric and value == 0:   # reasoning parser 모델을 chat 으로 재면 TTFT 가 0 으로 기록된다
+        return "판정불가 (TTFT 0: targets.yaml request_type 확인)", criterion
     ok = value <= limit if op == "≤" else value >= limit
     return ("PASS" if ok else "FAIL"), criterion
 

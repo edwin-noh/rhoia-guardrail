@@ -75,7 +75,7 @@ def build_job(tg: dict, sc: dict, provider_id: str) -> dict:
         "max_seconds": max_seconds,
         "data": data,
         "processor": sc.get("processor") or tg["processor"],
-        "request_type": "chat_completions",
+        "request_type": sc.get("request_type") or tg.get("request_type") or "chat_completions",
         "outputs": "json,csv,yaml",   # html 은 템플릿을 인터넷에서 받으므로 폐쇄망에서 실패한다
     }
     for key in ("data_args", "data_column_mapper", "data_samples"):

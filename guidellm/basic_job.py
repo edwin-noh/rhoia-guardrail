@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """GuideLLM 기본 동작을 이해하기 위한 단일 파일 예제 (EvalHub Python SDK 사용).
 
-RHOAI 에 포함된 시스템 provider `guidellm` 을 그대로 써서 아래 3단계를 보여준다.
+커스텀 provider `kbl_guidellm`(시스템 `guidellm` 과 벤치마크 정의는 같고 adapter 만 v0.7.2)으로 아래 3단계를 보여준다.
   1) job 제출   : "어떤 모델에, 어떤 부하를, 얼마 동안" 줄지 담아 제출
   2) 완료 대기  : SDK 가 상태를 주기적으로 조회
   3) 결과 출력  : GuideLLM 이 측정한 지표 + 로그의 p95 요약 표
 
-전제: EvalHub CR(evaluation/evalhub/hub/evalhub.yaml)의 spec.providers 에 `guidellm` 이 켜져 있어야 한다.
+전제: EvalHub CR(evaluation/evalhub/hub/evalhub.yaml)의 spec.providers 에 `kbl-guidellm` 이 켜져 있어야 한다.
 
 실행 (설치 없이):
     uv run --with "eval-hub-sdk[client]==1.0.7" python basic_job.py
@@ -26,7 +26,7 @@ TENANT = "kbl-eval"                      # 평가 job 이 실행될 네임스페
 MODEL_URL = "http://qwen3-4b-instruct-2507-v10-metrics.model-hub.svc.cluster.local:8080/v1"
 MODEL_NAME = "qwen3-4b-instruct-2507-v10"
 TOKENIZER = "Qwen/Qwen3-4B-Instruct-2507"  # 합성 프롬프트를 정확한 토큰 길이로 만들 때 사용
-# 시스템 provider "guidellm" 은 adapter v0.5.0 이라 MLflow 에 기록하지 않는다.
+# 시스템 provider "guidellm" 은 adapter v0.5.x 라 MLflow 에 지표를 기록하지 않는다.
 # 같은 벤치마크 정의에 adapter v0.7.2 이미지를 쓰는 커스텀 provider "kbl_guidellm" 을 쓴다
 # (evaluation/evalhub/hub/provider-kbl-guidellm.yaml). 결과가 MLflow run 에 지표 + 파일로 남는다.
 PROVIDER_ID = "kbl_guidellm"

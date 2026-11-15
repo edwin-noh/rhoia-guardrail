@@ -140,6 +140,31 @@
       "pass_criteria": {
         "threshold": 1
       }
+    },
+    {
+      "id": "customer_prompts",
+      "name": "고객 프롬프트 (파일 데이터)",
+      "description": "concurrent, /test_data 의 고객 프롬프트 파일",
+      "category": "performance",
+      "metrics": [
+        "requests_per_second",
+        "prompt_tokens_per_second",
+        "output_tokens_per_second",
+        "mean_ttft_ms",
+        "mean_itl_ms"
+      ],
+      "tags": [
+        "performance",
+        "kbl",
+        "guidellm"
+      ],
+      "primary_score": {
+        "metric": "mean_ttft_ms",
+        "lower_is_better": true
+      },
+      "pass_criteria": {
+        "threshold": 1500
+      }
     }
   ]
 }

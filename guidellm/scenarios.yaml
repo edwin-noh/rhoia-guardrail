@@ -4,15 +4,19 @@
 #   profile : synchronous(1명씩 순차) | concurrent(동시 사용자 rate 명 유지)
 #             | constant / poisson(초당 rate 건) | throughput(rate 를 상한으로 포화까지)
 #   rate    : profile 별 의미 (concurrent=동시 사용자 수). RATE_SCALE 로 일괄 조정
-#   sla     : 이 시나리오의 합격 기준 (EvalHub provider 의 pass_criteria 와 같은 값으로 report 에서 판정)
+#   sla     : 이 시나리오의 합격 기준. report.py 가 판정한다. metric 은 아래 중 하나
+#             p50_ttft_ms, p95_ttft_ms, mean_ttft_ms, p95_itl_ms, mean_itl_ms, p50_e2e_s, p95_e2e_s,
+#             requests_per_second, output_tokens_per_second, error_rate   (max = 이하 통과, min = 이상 통과)
+#             EvalHub 서버는 provider-kbl-perf.json 의 pass_criteria(평균값)로 따로 판정한다
 #   max_seconds : 생략하면 config.env 의 MAX_SECONDS
+#   data / test_data_ref : 고객 프롬프트 파일로 측정할 때 (맨 아래 예시). 있으면 prompt_tokens 대신 쓴다
 scenarios:
   - id: chat_baseline
     name: 상담 챗봇 1명 기준선
     profile: synchronous
     prompt_tokens: 256
     output_tokens: 256
-    sla: {metric: mean_ttft_ms, max: 500}
+    sla: {metric: p95_ttft_ms, max: 500}
 
   - id: chat_peak
     name: 상담 챗봇 피크 (동시 사용자)
@@ -20,7 +24,7 @@ scenarios:
     rate: 8
     prompt_tokens: 256
     output_tokens: 256
-    sla: {metric: mean_ttft_ms, max: 1500}
+    sla: {metric: p95_ttft_ms, max: 1500}
 
   - id: rag_consult
     name: RAG 상담 (약관 청크 포함 긴 입력)
@@ -28,7 +32,7 @@ scenarios:
     rate: 4
     prompt_tokens: 2048
     output_tokens: 256
-    sla: {metric: mean_ttft_ms, max: 3000}
+    sla: {metric: p95_ttft_ms, max: 3000}
 
   - id: doc_summary
     name: 약관·청약서 요약 (긴 입력·긴 출력)
@@ -45,3 +49,15 @@ scenarios:
     prompt_tokens: 256
     output_tokens: 256
     sla: {metric: requests_per_second, min: 1}
+
+  # 고객 프롬프트로 측정 (선택). 비식별 처리한 jsonl 을 S3(rustfs) 에 올리고 주석을 푼다.
+  # init container 가 s3://<bucket>/<key> 아래 파일을 pod 의 /test_data 로 받는다.
+  # 형식: prompts-example.jsonl (한 줄에 {"prompt": ...} 하나. GuideLLM 이 prompt 열을 입력으로 쓴다)
+  # - id: customer_prompts
+  #   name: 고객 프롬프트 (상담 로그 샘플)
+  #   profile: concurrent
+  #   rate: 8
+  #   data: /test_data/prompts.jsonl
+  #   test_data_ref:
+  #     s3: {bucket: kbl-eval, key: perf/prompts/v1, secret_ref: kbl-eval-s3}
+  #   sla: {metric: p95_ttft_ms, max: 1500}

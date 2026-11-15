@@ -11,6 +11,9 @@ metadata:
     opendatahub.io/generated-namespace: "true"
     # 대시보드가 데이터 사이언스 프로젝트로 인식해야 Evaluations 화면의 Project 목록에 나타난다
     opendatahub.io/dashboard: "true"
+    # 성능 평가 job 이 kbl-models 의 Raw 모델(kube-rbac-proxy 8443)에 접속할 수 있게 하는 NetworkPolicy 라벨.
+    # 토큰 권한(RoleBinding)은 rhoai-serving-gitops/ops/agent/kbl-eval.yaml
+    kblife.co.kr/model-consumer: "true"
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false   # Git 에서 지워도 네임스페이스는 남긴다
     argocd.argoproj.io/sync-wave: "-1"

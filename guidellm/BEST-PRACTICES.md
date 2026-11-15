@@ -3,7 +3,7 @@
 RHOAI에서 GuideLLM 같은 부하 테스트를 할 때 따를 원칙과 체크리스트다.
 RHOAI 3.5 공식 문서에는 부하 테스트 운영 가이드가 없다. 이 문서는 일반적인 LLM 서빙 성능 측정 원칙에 RHOAI 구성요소와 이 리포 lab에서 실측한 제약을 결합해 정리했다.
 
-> 근거 환경(2026-11): RHOAI 3.5.2, EvalHub(GA) + GuideLLM provider(커뮤니티 이미지 v0.5.0), MLflow, Kueue operator 1.3.2, Custom Metrics Autoscaler(KEDA) 2.19, OpenShift Pipelines 1.24, user-workload-monitoring 활성, NVIDIA GPU Operator(DCGM exporter), Models-as-a-Service gateway
+> 근거 환경(2026-11): RHOAI 3.5.2, EvalHub(GA) + GuideLLM provider(커뮤니티 이미지. 시스템 v0.5.x, 커스텀 kbl_perf/kbl_guidellm v0.7.2), MLflow, Kueue operator 1.3.2, Custom Metrics Autoscaler(KEDA) 2.19, OpenShift Pipelines 1.24, user-workload-monitoring 활성, NVIDIA GPU Operator(DCGM exporter), Models-as-a-Service gateway
 
 ---
 
@@ -18,7 +18,7 @@ RHOAI 3.5 공식 문서에는 부하 테스트 운영 가이드가 없다. 이 �
 | 용량 한계 | 1대가 최대 얼마를 처리하나? | `throughput`(rate = 동시 상한), `sweep` | `capacity` |
 | 회귀 비교 | 모델·설정 변경 후 느려졌나? | 같은 시나리오를 변경 전후로 실행 | 전체를 짧게 |
 
-- `sweep`은 저부하부터 포화까지 자동으로 훑기 때문에 탐색용으로 좋다. 다만 EvalHub adapter v0.5.0은 **첫 단계 결과만 지표로 보고**한다. 그래서 판정용으로는 단일 단계 프로파일을 쓴다.
+- `sweep`은 저부하부터 포화까지 자동으로 훑기 때문에 탐색용으로 좋다. 다만 EvalHub adapter 는 **첫 단계 결과만 지표로 보고**한다(v0.5.0 에서 확인, v0.7.2 미확인). 그래서 판정용으로는 단일 단계 프로파일을 쓴다.
 
 ## 2. 실제 트래픽처럼 만든다
 
@@ -60,7 +60,7 @@ RHOAI 3.5 공식 문서에는 부하 테스트 운영 가이드가 없다. 이 �
 
 | 항목 | 권장 | 비고 |
 |---|---|---|
-| 워밍업 | 앞 10~30초 제외 | adapter v0.5.0은 **초 단위**다. `"10%"`는 10초로 처리된다 |
+| 워밍업 | 앞 10~30초 제외 | adapter 는 **초 단위**다. `"10%"`는 10초로 처리된다 |
 | 측정 시간 | 판정용 2~5분 이상, 요청 수백 건 이상 | 30초는 경향 확인용이다. 이 lab의 synchronous 30초는 요청 5건뿐이었다 |
 | 반복 | 같은 조건 3회 이상 | 중앙값을 쓰고 편차(최대-최소)도 함께 보고한다 |
 | 판정 지표 | **p95/p99** (TTFT, E2E) | 평균은 꼬리 지연을 숨긴다 |
@@ -128,7 +128,7 @@ SLA 예시(업무별로 합의해 정한다):
 - **저장 위치:**
   - EvalHub job 이력과 MLflow experiment(`kbl-qwen3-4b-perf`)
   - 원본 `benchmarks.json`은 EvalHub `exports.oci`나 S3로 보관한다.
-  - adapter v0.5.0은 성능 지표와 원본 결과를 MLflow에 남기지 않는다. 그래서 `run.py` 이후 MLflow에 직접 기록하는 보완이 필요하다.
+  - adapter v0.7.2(`kbl_perf`)는 성능 지표와 원본 결과(`benchmarks.json`)를 MLflow 에 남긴다. `report.py` 가 여기서 p95 를 읽는다. 시스템 provider(v0.5.x)는 남기지 않는다.
 - **같은 시나리오 파일을 계속 쓴다.** 수치는 같은 조건끼리만 비교할 수 있다. `scenarios.yaml`을 Git으로 관리하고, 바꾸면 버전을 남긴다.
 
 ## 9. 배포 파이프라인에 넣는다 (품질 + 성능 게이트)
@@ -178,13 +178,13 @@ SLA 예시(업무별로 합의해 정한다):
 - [ ] 환경 정보와 결과를 함께 기록했다(8절)
 - [ ] 조치(설정 변경, 레플리카, 오토스케일 임계값)를 결정했다
 
-## 이 lab에서 확인한 제약 (RHOAI 3.5, GuideLLM adapter v0.5.0)
+## 이 lab에서 확인한 제약 (RHOAI 3.5, GuideLLM adapter v0.5.0 → v0.7.2)
 
 | 제약 | 영향 | 대응 |
 |---|---|---|
 | 한 job의 벤치마크가 동시에 실행됨 | 시나리오 간 부하 간섭 | 시나리오마다 job을 차례로 제출 (`run.py`) |
 | sweep 등 여러 단계 프로파일은 첫 단계만 지표로 보고 | 판정에 쓸 수 없음 | 단일 단계 프로파일로 시나리오를 나눔 |
-| EvalHub로는 평균값만 보고, `benchmarks.json`은 업로드되지 않음 | p95 판정 불가, MLflow 지표 없음 | pod 로그의 요약 표를 파싱 (`report.py`), OCI export 사용 |
+| v0.5.0: EvalHub로는 평균값만 보고, `benchmarks.json`은 업로드되지 않음 | p95 판정 불가, MLflow 지표 없음 | v0.7.2 커스텀 provider 사용. `report.py` 가 MLflow 의 `benchmarks.json` 에서 p95 를 읽는다 |
 | `warmup: "10%"`가 10초로 처리됨 | 측정 시간이 줄어듦 | 초 단위로 지정 (`WARMUP=5`) |
 | throughput 프로파일에 rate 필수 | 없으면 실패 | 동시 상한 rate를 지정 |
-| sidecar 모델 프록시가 service CA를 신뢰하지 않음 | 8443(kube-rbac-proxy) 측정 불가, 8080 측정값이 낙관적 | 서비스 경로는 GuideLLM CLI로 별도 측정 |
+| sidecar 모델 프록시가 기본으로 시스템 CA 만 신뢰 | `ca_cert` 없이는 8443(kube-rbac-proxy)·사설 인그레스 CA 측정 불가 | `model.auth.secret_ref` Secret 에 `ca_cert` 키를 넣는다 (`setup-targets.sh`) |

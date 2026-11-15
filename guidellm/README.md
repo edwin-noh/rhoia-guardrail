@@ -1,9 +1,13 @@
 # 서빙 성능 평가 예제 (EvalHub + GuideLLM)
 
 KB Life 업무 시나리오별로 **LLM 서빙 성능**(응답 속도, 처리량, 동시 사용자 수용량)을 측정하고 SLA 통과 여부를 표로 보여준다.
-RHOAI 3.5 EvalHub에 포함된 **GuideLLM** provider를 사용한다.
+RHOAI 3.5 EvalHub 에서 **GuideLLM** adapter 로 부하를 준다. 대상은 `targets.yaml` 의 **Raw(KServe RawDeployment)** 와 **MaaS(llm-d)** 모델이고,
+고객이 실제로 호출하는 경로(kube-rbac-proxy, MaaS Gateway·인증·rate limit)를 그대로 거친다.
 
 > 운영에서 부하 테스트를 설계·수행하는 원칙과 체크리스트는 [BEST-PRACTICES.md](BEST-PRACTICES.md)를 본다.
+
+> RHOAI 3.5 가 기본 제공하는 EvalHub·GuideLLM 기능과 연동 기능은 [docs/01-capabilities.md](docs/01-capabilities.md),
+> Raw/MaaS 모델 부하 테스트와 사이징 검증 아키텍처(구현 계획 포함)는 [docs/02-architecture.md](docs/02-architecture.md)를 본다.
 
 > 이 예제는 **속도와 용량**만 본다. 답이 맞는지(품질)는 `../evaluation/`(KMMLU, 골든셋)에서 평가한다.
 > 같은 모델이라도 GPU, vLLM 설정, 레플리카 수, 양자화 여부에 따라 결과가 달라진다. 그래서 이 수치는 모델 자체가 아니라 **서빙 환경**의 성능이다.
@@ -12,24 +16,45 @@ RHOAI 3.5 EvalHub에 포함된 **GuideLLM** provider를 사용한다.
 
 ```
 guidellm/
-├── config.env               # 부하 설정 (측정 시간, 부하 배수, 시나리오 선택, 대상 모델)
-├── scenarios.yaml           # KB Life 업무 시나리오 (토큰 길이, 부하 방식, SLA 기준)
-├── provider-kbl-perf.json   # EvalHub provider 정의 (시스템 GuideLLM 이미지 재사용)
+├── config.env               # 부하 설정 (측정 시간, 부하 배수, 대상·시나리오 선택, MLflow·Grafana 주소)
+├── targets.yaml             # 대상 모델 (raw, maas): URL, 인증 Secret, tokenizer, MLflow experiment, 대시보드 링크
+├── scenarios.yaml           # KB Life 업무 시나리오 (토큰 길이 또는 고객 프롬프트 파일, 부하 방식, SLA 기준)
+├── prompts-example.jsonl    # 고객 프롬프트 파일 형식 예시 (선택 시나리오 customer_prompts)
+├── provider-kbl-perf.json   # EvalHub provider 정의 (GuideLLM adapter v0.7.2 community 이미지, digest 고정)
 ├── register-provider.sh     # provider 를 REST API 로 테넌트에 등록/갱신
-├── run.sh / run.py          # 시나리오를 하나씩 차례로 실행
-├── report.py                # 결과 → SLA 표 (Markdown / CSV)
-└── results/<시각>/          # 요청·결과 JSON, sla-report.md, sla-report.csv
+├── setup-targets.sh         # 대상 접속용 Secret(kbl-perf-raw, kbl-perf-maas) 생성
+├── run.sh / run.py          # 대상 × 시나리오를 하나씩 차례로 실행
+├── report.py                # 결과 → SLA 리포트 (p95 판정, 대상 비교, 대시보드 링크 / Markdown·CSV)
+├── docs/                    # 기능 정리(01), 아키텍처(02)
+└── results/<시각>/          # 요청·결과·benchmarks.json, sla-report.md, sla-report.csv
 ```
 
 - `../evaluation/`이 배포한 EvalHub 서버, 테넌트 `kbl-eval`, 모델 접근 권한을 **함께 사용**한다. 소스와 매니페스트는 공유하지 않는다.
 - provider `kbl_perf`는 EvalHub CR(ConfigMap)을 고치지 않도록 **REST API로 테넌트에 등록**한다. `run.sh`가 자동으로 등록하거나 갱신한다.
-- 시나리오를 한 job에 몰아 넣으면 EvalHub가 pod를 **동시에** 띄워 서로 부하를 간섭한다. 그래서 `run.py`는 시나리오마다 job을 하나씩 제출하고, 끝나기를 기다렸다가 다음을 실행한다.
+- 시나리오를 한 job에 몰아 넣으면 EvalHub가 pod를 **동시에** 띄워 서로 부하를 간섭한다. 그래서 `run.py`는 (대상, 시나리오)마다 job을 하나씩 제출하고, 끝나기를 기다렸다가 다음을 실행한다.
+
+## 대상 모델과 접속 경로 (`targets.yaml`)
+
+| 대상 | URL | 인증 | 필요한 설정 |
+|---|---|---|---|
+| `raw` | `https://qwen3-1-7b-predictor.kbl-models.svc.cluster.local:8443/v1` | kube-rbac-proxy. sidecar 가 job SA(`evalhub-redhat-ods-applications-job`) 토큰을 넣는다 | Secret `kbl-perf-raw`(`ca_cert`=service CA), RoleBinding `kbl-models/caller-kbl-eval`(rhoai-serving-gitops `ops/agent/kbl-eval.yaml`), `kbl-eval` 라벨 `kblife.co.kr/model-consumer` |
+| `maas` | `https://maas.apps.rhoai-35.edwin.home/v1` | MaaS API key (`sk-oai-…`) | Secret `kbl-perf-maas`(`api-key`, `ca_cert`=인그레스 CA), 성능 테스트 전용 구독 `kbl-perf-testers`(rhoai-serving-gitops `ops/maas-policy/`) |
+
+- job 은 `model.auth.secret_ref` 로 Secret 을 받는다. sidecar 는 Secret 의 **`ca_cert` 로 TLS 를 검증**하고, `api-key` 가 있으면 그 값을, 없으면 job SA 토큰을 Bearer 로 보낸다.
+  `ca_cert` 를 주지 않으면 시스템 CA 만 신뢰해 service CA·사설 인그레스 CA 엔드포인트에서 x509 오류가 난다(예전에 8080 을 쓴 이유).
+  - 문서 근거: *Evaluating AI systems* 2.15(API key), 2.16(SA 토큰). `ca_cert` 키는 문서에 없고 EvalHub sidecar 소스(`eval-runtime-sidecar` 의 model client)에서 확인했다(3.5 문서 미기재).
+- MaaS 는 일반 구독(사용자당 2만 tokens/분)으로는 부하 테스트 중 429 가 나므로, 한도를 크게 둔 **성능 테스트 전용 구독**의 사용자가 발급한 key 를 쓴다.
+
+```bash
+./setup-targets.sh raw                          # 처음 한 번
+MAAS_API_KEY=sk-oai-... ./setup-targets.sh maas # kbl-perf-testers 그룹 사용자가 발급한 key (Dashboard → API keys)
+```
 
 ## 처음 이해할 때: 단일 파일 예제
 
 `basic_job.py`는 설정 파일이나 시나리오 파일 없이, EvalHub provider **`kbl_guidellm`**으로 job 하나를 제출하고 대기한 뒤 결과를 출력하는 예제다. EvalHub Python SDK를 쓰고, provider는 새로 만들지 않는다. 결과는 MLflow에도 남는다. URL과 부하는 파일 맨 위에서 직접 고친다.
 - 전제: EvalHub CR(`evaluation/evalhub/hub/evalhub.yaml`)의 `spec.providers`에 `kbl-guidellm`이 켜져 있어야 한다. CRD 기본값(`garak`, `garak-kfp`, `lm-evaluation-harness`)에는 GuideLLM이 없다.
-- `kbl_guidellm`은 시스템 provider `guidellm`과 벤치마크 정의가 같고, adapter 이미지만 v0.5.0에서 **v0.7.2**로 바꾼 커스텀 provider다(`evaluation/evalhub/hub/provider-kbl-guidellm.yaml`).
+- `kbl_guidellm`은 시스템 provider `guidellm`과 벤치마크 정의가 같고, adapter 이미지만 시스템 버전(v0.5.x)에서 **v0.7.2**로 바꾼 커스텀 provider다(`evaluation/evalhub/hub/provider-kbl-guidellm.yaml`).
 - 벤치마크 id는 provider에 정의된 것(`concurrent`, `throughput`, `sweep`, `quick_perf_test` 등)을 쓴다. 실제 부하는 job `parameters`(`profile`, `rate`, `max_seconds`, `data`)가 정한다.
 ```bash
 uv run --with "eval-hub-sdk[client]==1.0.7" python guidellm/basic_job.py
@@ -43,11 +68,12 @@ uv run --with "eval-hub-sdk[client]==1.0.7" python guidellm/basic_job.py
 
 | provider | adapter 이미지 | MLflow 기록 |
 |---|---|---|
-| `guidellm` (RHOAI 3.5 시스템) | v0.5.0 | 없음. EvalHub 서버가 만든 빈 job run(RUNNING)과 `evaluation-card.json`만 남는다 |
+| `guidellm` (RHOAI 3.5 시스템) | v0.5.4 (2026-11-14 클러스터 확인) | 없음(v0.5.0 에서 확인). EvalHub 서버가 만든 빈 job run(RUNNING)과 `evaluation-card.json`만 남는다 |
 | `kbl_guidellm`, `kbl_perf` (이 리포) | v0.7.2 | 벤치마크별 run에 **Metrics**(요청/초, 토큰/초, TTFT·ITL 평균)와 **Artifacts**(`benchmarks.json`, `.csv`, `.html`, p95 등 분포와 차트 리포트 포함)가 남는다 |
 
 - job 요청에 `experiment`가 있어야 기록된다. 없으면 adapter가 MLflow 기록을 건너뛴다.
-- 보는 곳: RHOAI 대시보드 → MLflow → workspace `kbl-eval` → experiment(`guidellm_basic_<모델>`, `kbl-qwen3-4b-perf`).
+- 보는 곳: RHOAI 대시보드 → MLflow → workspace `kbl-eval` → experiment(`kbl-perf-raw`, `kbl-perf-maas`, `guidellm_basic_<모델>`). 예전 결과는 `kbl-qwen3-4b-perf`.
+- Dashboard → Develop & train → **Evaluations**(프로젝트 `kbl-eval`)에서도 job 목록과 결과를 본다(TP, OdhDashboardConfig `disableLMEval: false` 필요).
   - 이름에 `<job-id>_0`처럼 번호가 붙은 run이 벤치마크 결과다.
   - job 이름 그대로인 run은 EvalHub 서버가 만든 요약 run이며 `evaluation-card.json`만 있다.
 - run을 여러 개 선택해 Compare 하면 실행 간 지표를 나란히 비교할 수 있다.
@@ -58,7 +84,8 @@ uv run --with "eval-hub-sdk[client]==1.0.7" python guidellm/basic_job.py
 ## 실행
 
 ```bash
-./run.sh                                    # 기본: 5개 시나리오, 각 30초 (전체 약 4~5분)
+./run.sh                                    # 기본: 대상 2개(raw, maas) × 시나리오 5개, 각 30초 (전체 약 10분)
+TARGETS=raw ./run.sh                        # 대상 하나만
 MAX_SECONDS=60 ./run.sh                     # 측정 시간 변경 (모든 시나리오에 우선 적용)
 SCENARIOS=chat_baseline,chat_peak ./run.sh  # 일부 시나리오만
 RATE_SCALE=0.5 ./run.sh                     # 동시 사용자 수를 절반으로
@@ -81,24 +108,28 @@ MAX_REQUESTS=20 ./run.sh                    # 요청 수로 제한 (시간보다
 
 지표 출처:
 - 평균값은 EvalHub job 결과에서 온다. MLflow와 대시보드에서도 같은 값을 본다.
-- 중앙값/p95와 요청 수는 GuideLLM이 평가 pod 로그에 출력하는 요약 표에서 `report.py`가 읽는다. 평가 pod가 정리된 뒤에는 이 칸이 `-`로 표시된다. 이때는 MLflow artifact의 `benchmarks.json`에서 같은 값을 볼 수 있다(adapter v0.7.2).
+- 중앙값/p95, 완료/오류 요청 수, 측정 구간은 `report.py` 가 MLflow artifact `benchmarks.json`(adapter v0.7.2)에서 읽는다. 처음 한 번 받아 결과 폴더에 저장하므로 평가 pod 가 정리된 뒤에도 남는다.
+- 리포트(`sla-report.md`)에는 대상 비교 표(Raw vs MaaS)와, 측정 구간(앞뒤 1분)이 지정된 Grafana 대시보드 링크(vLLM, GPU, MaaS 사용량)가 들어간다. 링크는 `targets.yaml` 의 `dashboards` 에서 정한다.
+- 다시 만들기: `uv run --no-project --with pyyaml python -I report.py results/<시각>`
 
 ## 시나리오 (`scenarios.yaml`)
 
 | 시나리오 | 업무 | 입력/출력 토큰 | 부하 | SLA 예시 |
 |---|---|---|---|---|
-| `chat_baseline` | 상담 챗봇, 1명 기준선 | 256 / 256 | synchronous (1명씩 순차) | TTFT 평균 ≤ 500ms |
-| `chat_peak` | 상담 챗봇, 동시 사용자 | 256 / 256 | concurrent ×8 | TTFT 평균 ≤ 1500ms |
-| `rag_consult` | RAG 상담 (약관 청크 포함 긴 입력) | 2048 / 256 | concurrent ×4 | TTFT 평균 ≤ 3000ms |
+| `chat_baseline` | 상담 챗봇, 1명 기준선 | 256 / 256 | synchronous (1명씩 순차) | TTFT p95 ≤ 500ms |
+| `chat_peak` | 상담 챗봇, 동시 사용자 | 256 / 256 | concurrent ×8 | TTFT p95 ≤ 1500ms |
+| `rag_consult` | RAG 상담 (약관 청크 포함 긴 입력) | 2048 / 256 | concurrent ×4 | TTFT p95 ≤ 3000ms |
 | `doc_summary` | 약관·청약서 요약 | 4096 / 512 | concurrent ×2 | 출력 ≥ 초당 50토큰 |
 | `capacity` | 최대 처리량 | 256 / 256 | throughput (동시 16 상한, 포화까지) | 요청 ≥ 초당 1건 |
+| `customer_prompts` (선택, 주석) | 고객 프롬프트 파일 | 파일 | concurrent ×8 | TTFT p95 ≤ 1500ms |
 
 ### KB Life 업무에 맞추기
 1. **토큰 길이**: 실제 서비스 로그(또는 vLLM `/metrics`의 `prompt_tokens`, `generation_tokens` 히스토그램)에서 업무별 평균 입력·출력 길이를 구해 `prompt_tokens`와 `output_tokens`에 넣는다. RAG는 "시스템 프롬프트 + 검색 청크 수 × 청크 길이 + 질문"으로 계산한다.
 2. **동시 사용자(rate)**: 피크 시간대의 동시 활성 세션 수를 넣는다. 대략 "피크 시간 요청 수 ÷ 3600 × 평균 응답 시간(초)"이다.
-3. **SLA**: 업무별 목표를 `sla`에 넣는다. `max`는 이하일 때, `min`은 이상일 때 통과다. 지표 이름은 `mean_ttft_ms`, `mean_itl_ms`, `requests_per_second`, `output_tokens_per_second`, `prompt_tokens_per_second`다.
-   - EvalHub 결과의 PASS/FAIL은 `provider-kbl-perf.json`의 `pass_criteria`로 판정한다. 두 곳의 기준을 맞춰 둔다.
-4. **새 시나리오**: `scenarios.yaml`과 `provider-kbl-perf.json`의 `benchmarks`에 같은 id로 추가한다.
+3. **SLA**: 업무별 목표를 `sla`에 넣는다. `max`는 이하일 때, `min`은 이상일 때 통과다. 지표 이름은 `p50_ttft_ms`, `p95_ttft_ms`, `mean_ttft_ms`, `p95_itl_ms`, `mean_itl_ms`, `p50_e2e_s`, `p95_e2e_s`, `requests_per_second`, `output_tokens_per_second`, `error_rate` 다.
+   - EvalHub 결과(Dashboard·MLflow)의 PASS/FAIL 은 `provider-kbl-perf.json`의 `pass_criteria`(평균값)로 따로 판정한다. 리포트는 p95 로 판정하므로 둘이 다를 수 있다.
+4. **고객 프롬프트**: 비식별 처리한 jsonl(`prompts-example.jsonl` 형식)을 S3(rustfs, Secret `kbl-eval-s3`)에 올리고 `scenarios.yaml` 맨 아래 `customer_prompts` 주석을 푼다. job 의 `test_data_ref` 로 pod 의 `/test_data` 에 받아 GuideLLM `data` 로 쓴다.
+5. **새 시나리오**: `scenarios.yaml`과 `provider-kbl-perf.json`의 `benchmarks`에 같은 id로 추가한다.
 
 ## 결과 해석 예
 
@@ -109,13 +140,14 @@ MAX_REQUESTS=20 ./run.sh                    # 요청 수로 제한 (시간보다
 
 ## 주의사항
 
-- **측정 경로**: EvalHub job sidecar의 모델 프록시는 OpenShift service CA를 신뢰하지 않는다. 그래서 KServe 인증 포트(8443) 대신 vLLM 직접 포트(`<isvc>-metrics:8080`)를 호출한다. kube-rbac-proxy와 라우터를 거치지 않으므로 실제 서비스 경로보다 **약간 낙관적인 수치**다.
+- **측정 경로**: 대상은 고객이 호출하는 경로(Raw 8443 kube-rbac-proxy, MaaS Gateway)다. 아래 2026-11-06 검증 결과는 그 전에 vLLM 직접 포트(8080, `model-hub` 모델)로 잰 값이라 경로 오버헤드가 빠져 있다.
+- **GPU 공유**: 이 SNO 는 GPU 1장을 time-slicing 으로 Raw 와 MaaS 가 나눠 쓴다. 한 대상을 잴 때 다른 대상에 트래픽이 없어야 한다(run.py 는 순차 실행).
 - **간섭**: 같은 GPU를 쓰는 다른 트래픽(가드레일 self-check, 다른 평가 job)과 겹치면 수치가 나빠진다. 측정 중에는 다른 부하를 멈춘다.
-- **WARMUP 단위**: `WARMUP`은 **초 단위**다(기본 5초). adapter v0.5.0은 `"10%"`를 `10`으로 바꿔 넘기는데, GuideLLM이 이를 10초로 처리한다. 그래서 30초 측정이 실제로는 20초가 된다.
+- **WARMUP 단위**: `WARMUP`은 **초 단위**다(기본 5초). adapter 는 `"10%"`를 `10`으로 바꿔 넘기는데, GuideLLM이 이를 10초로 처리한다. 그래서 30초 측정이 실제로는 20초가 된다.
 - **throughput 프로파일**: `rate`(최대 동시 요청 수)가 반드시 있어야 한다. 없으면 `ThroughputProfile requires a rate parameter`로 실패한다.
 - **측정 시간이 짧을 때**: 30초 측정은 경향 확인용이다. 특히 `synchronous`는 요청 수가 적다(30초에 4~5건). SLA 판정에 쓸 때는 `MAX_SECONDS=120` 이상을 권장한다.
 - **sweep 프로파일**: 단계가 여러 개인 프로파일(sweep)은 첫 단계만 EvalHub 지표로 보고된다. 이 예제는 단일 단계 프로파일만 쓴다.
-- **tokenizer**: 합성 데이터의 토큰 길이를 맞추는 데 쓰며 기본은 HF Hub에서 받는다(`PROCESSOR`). 폐쇄망에서는 tokenizer를 S3에 올리고 `test_data_ref`와 `PROCESSOR=/test_data/tokenizer`를 쓰는 방식이 필요하다. 다만 v0.5.0 adapter가 이를 지원하는지는 확인되지 않았다(upstream 수정은 2026-11-04).
+- **tokenizer**: 합성 데이터의 토큰 길이를 맞추는 데 쓰며 기본은 HF Hub에서 받는다(`PROCESSOR`). 폐쇄망에서는 tokenizer를 S3에 올리고 `test_data_ref`와 `PROCESSOR=/test_data/tokenizer`를 쓰는 방식이 필요하다. adapter v0.7.2 에서 이 방식이 동작하는지는 아직 확인하지 않았다(upstream 수정은 2026-11-04).
 - GuideLLM provider 이미지(`quay.io/evalhub/community-guidellm`)는 커뮤니티 이미지다. 운영 도입 전에 Red Hat 지원 범위를 확인한다.
 
 ## 검증 결과 (2026-11-06, rhoai-35 SNO, GPU 1장, qwen3-4b-instruct-2507, vLLM 직접 포트)

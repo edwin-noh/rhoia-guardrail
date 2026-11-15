@@ -31,7 +31,7 @@ targets:
   - id: maas
     name: MaaS (llm-d, Gateway + Authorino + Limitador)
     url: https://maas.apps.rhoai-35.edwin.home/v1
-    model: qwen3-1-7b
+    model: publishers/kbl-maas/models/qwen3-1-7b   # MaaS /v1/models 의 id. body 라우팅은 이 이름만 받는다(qwen3-1-7b 는 404)
     processor: Qwen/Qwen3-1.7B
     max_model_len: 4096          # ai/maas/qwen3-1-7b.yaml --max-model-len=4096
     request_type: text_completions   # --reasoning-parser=qwen3 라 chat 으로는 TTFT 측정 불가

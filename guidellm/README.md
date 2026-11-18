@@ -8,7 +8,7 @@ RHOAI 3.5 EvalHub 에서 **GuideLLM** adapter 로 부하를 준다. 대상은 `t
 
 > RHOAI 3.5 가 기본 제공하는 EvalHub·GuideLLM 기능과 연동 기능은 [docs/01-capabilities.md](docs/01-capabilities.md),
 > Raw/MaaS 모델 부하 테스트와 사이징 검증 아키텍처(구현 계획 포함)는 [docs/02-architecture.md](docs/02-architecture.md)를 본다.
-> 폐쇄망 워크벤치(EvalHub SDK)에서 실행할 때 반입할 것은 [docs/03-airgap-workbench.md](docs/03-airgap-workbench.md)를 본다.
+> 폐쇄망 워크벤치(EvalHub SDK)에서 실행할 때 필요한 것은 [docs/03-airgap-workbench.md](docs/03-airgap-workbench.md), 반입 절차(이미지·wheel·tokenizer·고객 프롬프트)는 [docs/04-airgap-import-guide.md](docs/04-airgap-import-guide.md)를 본다.
 
 > 이 예제는 **속도와 용량**만 본다. 답이 맞는지(품질)는 `../evaluation/`(KMMLU, 골든셋)에서 평가한다.
 > 같은 모델이라도 GPU, vLLM 설정, 레플리카 수, 양자화 여부에 따라 결과가 달라진다. 그래서 이 수치는 모델 자체가 아니라 **서빙 환경**의 성능이다.
@@ -24,6 +24,8 @@ guidellm/
 ├── provider-kbl-perf.json   # EvalHub provider 정의 (GuideLLM adapter v0.7.2 community 이미지, digest 고정)
 ├── register-provider.sh     # provider 를 REST API 로 테넌트에 등록/갱신
 ├── setup-targets.sh         # 대상 접속용 Secret(kbl-perf-raw, kbl-perf-maas) 생성
+├── extract-tokenizer.py     # modelcar 이미지에서 tokenizer 파일만 추출 (폐쇄망용)
+├── prepare-prompts.py       # 고객 질문 원본 → 마스킹·중복 제거한 prompts.jsonl
 ├── run.sh / run.py          # 대상 × 시나리오를 하나씩 차례로 실행
 ├── report.py                # 결과 → SLA 리포트 (p95 판정, 대상 비교, 대시보드 링크 / Markdown·CSV)
 ├── docs/                    # 기능 정리(01), 아키텍처(02)

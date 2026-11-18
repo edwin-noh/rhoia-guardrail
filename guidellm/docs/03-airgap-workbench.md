@@ -2,6 +2,7 @@
 
 폐쇄망 클러스터의 RHOAI 워크벤치에서 **EvalHub Python SDK** 로 GuideLLM job 을 제출한다. 이때 밖에서 가져와야 할 것과, 클러스터 안에서 준비할 것을 정리한다.
 EvalHub 는 이미 설치되어 있다고 가정한다(EvalHub CR, 테넌트, MLflow).
+받는 방법과 안에서의 작업 절차(명령)는 [04-airgap-import-guide.md](04-airgap-import-guide.md) 를 본다.
 
 ## 근거 표기
 - **[문서]** RHOAI Self-Managed 3.5 공식 문서(문서 이름과 절)
@@ -99,13 +100,8 @@ mirror:
 adapter v0.7.2 는 `processor` 가 **`/test_data/` 아래 디렉터리**면 HF offline 환경변수를 켜고 그 디렉터리를 쓴다([소스] eval-hub-contrib `d69561e`, v0.7.2 에 포함).
 
 ```bash
-# 미러된 modelcar 이미지에서 tokenizer 파일만 꺼낸다 (가중치 제외). 없는 파일은 건너뛴다
-mkdir -p qwen3-1.7b
-for f in config.json generation_config.json tokenizer.json tokenizer_config.json \
-         vocab.json merges.txt special_tokens_map.json added_tokens.json; do
-  oc image extract <내부레지스트리>/<modelcar 이미지>@sha256:... -a <pull-secret> \
-     --path /models/$f:./qwen3-1.7b/ --confirm 2>/dev/null || echo "skip $f"
-done
+# 미러된 modelcar 에서 tokenizer 레이어만 받는다 (가중치 제외, 약 16MB). 자세한 방법과 대안은 04 문서 4장
+python3 extract-tokenizer.py <내부레지스트리>/<modelcar 이미지>@sha256:... ./qwen3-1.7b
 # 테넌트의 S3 에 올린다 (예: rustfs, Secret kbl-eval-s3 와 같은 버킷)
 aws s3 cp --recursive ./qwen3-1.7b s3://kbl-eval/perf/v1/qwen3-1.7b/ --endpoint-url <S3 endpoint>
 ```

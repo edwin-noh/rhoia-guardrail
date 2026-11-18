@@ -234,6 +234,7 @@ oc image extract <내부레지스트리>/<repo>/modelcar-qwen3-1.7b@sha256:<dige
   --path /models/config.json:./qwen3-1.7b/ \
   --path /models/generation_config.json:./qwen3-1.7b/
 ```
+- 테스트: 같은 이미지에서 6개 파일을 꺼내는 데 약 20분 걸렸다(인터넷 경유, 가중치 4GB 포함 전체 다운로드). 방법 1 은 20초였다.
 - `--path` 를 **한 번에 모두** 준다. `oc image extract` 는 원하는 파일이 든 레이어만 고르지 않고 모든 레이어를 받으면서 거른다. 파일마다 따로 실행하면 가중치를 파일 수만큼 다시 받는다.
 - 대상 디렉터리가 미리 있어야 한다(없으면 실패).
 - 대안: `podman create <image>` 로 컨테이너를 만든 뒤 `podman cp <id>:/models/tokenizer.json ./qwen3-1.7b/` 를 쓰고 `podman rm` 으로 지운다(이미지 전체 pull).
